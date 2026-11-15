@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,11 +12,13 @@ import {
     EyeOff,
     ArrowLeft,
     Loader2,
-    ShieldCheck,
     Mic,
+    MicOff,
     Users,
     SignalHigh,
     Disc,
+    Hand,
+    MessageSquare,
     PhoneOff,
     ScreenShare
 } from 'lucide-react';
@@ -30,15 +32,58 @@ export default function Authentication() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [name, setName] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [capsLockActive, setCapsLockActive] = useState(false);
     const [error, setError] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [message, setMessage] = useState("");
     const [formState, setFormState] = useState(0); // 0 = Sign In, 1 = Sign Up
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [shake, setShake] = useState(false);
+
+    // Live preview states: REC elapsed timer & dynamic speaker rotation
+    const [recSeconds, setRecSeconds] = useState(1122); // Start at 00:18:42
+    const [activeSpeakerIndex, setActiveSpeakerIndex] = useState(0);
+    const [isShortViewport, setIsShortViewport] = useState(false);
 
     const { handleRegister, handleLogin } = useContext(AuthContext);
     const navigate = useNavigate();
+
+    // Viewport height listener for < 860px (1x2 tiles optimization)
+    useEffect(() => {
+        const checkHeight = () => {
+            if (typeof window !== 'undefined') {
+                setIsShortViewport(window.innerHeight < 860);
+            }
+        };
+        checkHeight();
+        window.addEventListener('resize', checkHeight);
+        return () => window.removeEventListener('resize', checkHeight);
+    }, []);
+
+    // Live ticking REC timer
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setRecSeconds(prev => prev + 1);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Rotate active speaker every 4 seconds (rotates among visible tiles)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveSpeakerIndex(prev => (prev + 1) % (isShortViewport ? 2 : 4));
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [isShortViewport]);
+
+    // Format seconds into HH:MM:SS
+    const formatRecTime = (totalSec) => {
+        const hrs = Math.floor(totalSec / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
 
     // Password strength evaluation (4 segments)
     const getPasswordStrength = (pass) => {
@@ -54,6 +99,11 @@ export default function Authentication() {
 
     const strength = getPasswordStrength(password);
 
+    const triggerShake = () => {
+        setShake(true);
+        setTimeout(() => setShake(false), 450);
+    };
+
     const handleAuth = async (e) => {
         if (e) e.preventDefault();
         setError("");
@@ -66,6 +116,7 @@ export default function Authentication() {
 
             if (Object.keys(errors).length > 0) {
                 setFieldErrors(errors);
+                triggerShake();
                 return;
             }
 
@@ -76,6 +127,7 @@ export default function Authentication() {
                 console.error("Auth error:", err);
                 const errMsg = err?.response?.data?.message || "Invalid username or password";
                 setError(errMsg);
+                triggerShake();
             } finally {
                 setIsLoading(false);
             }
@@ -89,6 +141,7 @@ export default function Authentication() {
 
             if (Object.keys(errors).length > 0) {
                 setFieldErrors(errors);
+                triggerShake();
                 return;
             }
 
@@ -106,6 +159,7 @@ export default function Authentication() {
                 console.error("Auth error:", err);
                 const errMsg = err?.response?.data?.message || "Registration failed. Please try a different username.";
                 setError(errMsg);
+                triggerShake();
             } finally {
                 setIsLoading(false);
             }
@@ -138,7 +192,6 @@ export default function Authentication() {
         }
     };
 
-    // Satellite chips scale/fade in variants
     const chipVariants = {
         hidden: { opacity: 0, scale: 0.9 },
         visible: {
@@ -148,25 +201,28 @@ export default function Authentication() {
         }
     };
 
+    // 5 Animated waveform bar relative heights
+    const waveformScales = [0.4, 0.9, 0.6, 1.0, 0.5];
+
     return (
         <div className={styles.authContainer}>
-            {/* ================= LEFT PANEL (50/50 Desktop Split) ================= */}
+            {/* ================= LEFT PANEL (50/50 Desktop Split, Grid Rows: auto 1fr auto) ================= */}
             <div className={styles.leftPanel}>
                 <div className={styles.emeraldGlowTop} />
                 <div className={styles.emeraldGlowBottom} />
                 <div className={styles.noiseOverlay} />
 
-                {/* Top Left Header (Logo Only) */}
+                {/* Row 1: Logo Only (32px padding from edges) */}
                 <div className={styles.leftHeader}>
                     <div className={styles.brandLink} onClick={() => navigate('/')}>
                         <div className={styles.brandIcon}>
-                            <Video size={18} />
+                            <Video size={20} strokeWidth={1.75} />
                         </div>
                         <span className={styles.brandTitle}>PulseMeet</span>
                     </div>
                 </div>
 
-                {/* Middle Content: Headline, Subtext, Hero Preview (Shared Left Edge) */}
+                {/* Row 2: Headline, Subtext, Hero Preview (Vertically Centered with >= 4rem gap) */}
                 <motion.div
                     className={styles.leftMiddleContent}
                     variants={leftContainerVariants}
@@ -174,46 +230,35 @@ export default function Authentication() {
                     animate="visible"
                 >
                     <motion.h1 className={styles.headline} variants={leftItemVariants}>
-                        Meetings that never touch <span className={styles.emeraldText}>our servers.</span>
+                        Video meetings, <span className={styles.emeraldText}>straight between browsers.</span>
                     </motion.h1>
 
                     <motion.p className={styles.subtext} variants={leftItemVariants}>
-                        Direct peer-to-peer audio, video, and screen sharing. Audio and video go straight between browsers, never through our servers.
+                        Audio and video go directly between participants. Our server only helps them find each other.
                     </motion.p>
 
                     {/* Large Product Preview Window & Floating Satellite Chips */}
                     <motion.div className={styles.previewHeroWrapper} variants={leftItemVariants}>
-                        {/* Satellite Chip 1 (Top-Right) */}
+                        {/* Satellite Chip A (Top-Right, Outside Card) */}
                         <motion.div
-                            className={styles.satelliteChip1}
+                            className={styles.satelliteChipA}
                             variants={chipVariants}
-                            animate={{ y: [0, -8, 0] }}
-                            transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0 }}
                         >
-                            <Zap size={14} className="text-[#34D399]" />
-                            <span>P2P connected · 64ms</span>
+                            <Zap size={16} strokeWidth={1.75} className="text-[#34D399]" />
+                            <span>Direct connection</span>
                         </motion.div>
 
-                        {/* Satellite Chip 2 (Middle-Left) */}
+                        {/* Satellite Chip B (Bottom-Left, Outside Card) */}
                         <motion.div
-                            className={styles.satelliteChip2}
+                            className={styles.satelliteChipB}
                             variants={chipVariants}
-                            animate={{ y: [0, -8, 0] }}
-                            transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
                         >
-                            <HardDrive size={14} className="text-[#34D399]" />
-                            <span>Recording saved to your disk (.webm)</span>
-                        </motion.div>
-
-                        {/* Satellite Chip 3 (Bottom-Right) */}
-                        <motion.div
-                            className={styles.satelliteChip3}
-                            variants={chipVariants}
-                            animate={{ y: [0, -8, 0] }}
-                            transition={{ duration: 5.8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                        >
-                            <ShieldCheck size={14} className="text-[#34D399]" />
-                            <span>0 bytes of video on our servers</span>
+                            <HardDrive size={16} strokeWidth={1.75} className="text-[#34D399]" />
+                            <span>Recording saves to your disk</span>
                         </motion.div>
 
                         {/* The Hero Preview Window Card */}
@@ -221,112 +266,193 @@ export default function Authentication() {
                             {/* Window Top Bar */}
                             <div className={styles.windowBar}>
                                 <div className={styles.windowUrl}>
-                                    <Lock size={13} className="text-[#34D399]" />
-                                    <span>pulsemeet.io/room/alpha-9x</span>
-                                </div>
-                                <div className={styles.recIndicator}>
-                                    <div className={styles.recPulseDot} />
-                                    <span>REC 00:18:42</span>
+                                    <Lock size={18} strokeWidth={1.75} className="text-[#34D399]" />
+                                    <span>alpha-9x</span>
                                 </div>
                                 <div className={styles.windowMetaRight}>
+                                    <div className={styles.recIndicator}>
+                                        <div className={styles.recPulseDot} />
+                                        <span>REC {formatRecTime(recSeconds)}</span>
+                                    </div>
                                     <div className={styles.participantCount}>
-                                        <Users size={13} />
+                                        <Users size={18} strokeWidth={1.75} />
                                         <span>4</span>
                                     </div>
-                                    <SignalHigh size={13} className="text-[#34D399]" />
+                                    <SignalHigh size={18} strokeWidth={1.75} className="text-[#34D399]" />
                                 </div>
                             </div>
 
-                            {/* 2x2 Grid of 16:9 Tiles */}
+                            {/* 2x2 Grid of 16:9 Tiles (Switches to 1x2 when height < 860px) */}
                             <div className={styles.tilesGrid}>
-                                {/* Tile 1: Host Raj (Active Speaker with Emerald Ring) */}
-                                <div className={`${styles.videoTile} ${styles.speakingTile}`}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarHost}`}>
+                                {/* Tile 1: Host Raj (Emerald Tint) */}
+                                <div className={`${styles.videoTile} ${activeSpeakerIndex === 0 ? styles.speakingTile : ''}`}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarEmerald}`}>
                                         R
                                     </div>
-                                    <div className={styles.speakingWaveMini}>
-                                        <div className={styles.waveBar} />
-                                        <div className={styles.waveBar} />
-                                        <div className={styles.waveBar} />
-                                    </div>
+                                    {activeSpeakerIndex === 0 ? (
+                                        <div className={styles.speakingWaveContainer}>
+                                            {waveformScales.map((scale, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    className={styles.activeWaveBar}
+                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
+                                                    transition={{
+                                                        duration: 0.6,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                        delay: i * 0.1
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.speakingWavePlaceholder} />
+                                    )}
                                     <div className={styles.tileNameChip}>
-                                        Raj (Host) 🎤
+                                        <span>Raj (Host)</span>
+                                        {activeSpeakerIndex === 0 && <span className={styles.speakingPulseDot} />}
                                     </div>
                                 </div>
 
-                                {/* Tile 2: Sarah Miller */}
-                                <div className={styles.videoTile}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarTone1}`}>
+                                {/* Tile 2: Sarah Miller (Sky Tint) */}
+                                <div className={`${styles.videoTile} ${activeSpeakerIndex === 1 ? styles.speakingTile : ''}`}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarSky}`}>
                                         S
                                     </div>
+                                    {activeSpeakerIndex === 1 ? (
+                                        <div className={styles.speakingWaveContainer}>
+                                            {waveformScales.map((scale, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    className={styles.activeWaveBar}
+                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
+                                                    transition={{
+                                                        duration: 0.6,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                        delay: i * 0.1
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.speakingWavePlaceholder} />
+                                    )}
                                     <div className={styles.tileNameChip}>
-                                        Sarah Miller
+                                        <span>Sarah Miller</span>
+                                        {activeSpeakerIndex === 1 ? (
+                                            <span className={styles.speakingPulseDot} />
+                                        ) : (
+                                            <MicOff size={13} strokeWidth={1.75} className="text-[#A1A1AA]" />
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Tile 3: Alex Rivera */}
-                                <div className={styles.videoTile}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarTone2}`}>
+                                {/* Tile 3: Alex Rivera (Amber Tint, Hidden on Short Viewports) */}
+                                <div className={`${styles.videoTile} ${styles.tileHiddenShort} ${activeSpeakerIndex === 2 ? styles.speakingTile : ''}`}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarAmber}`}>
                                         A
                                     </div>
+                                    {activeSpeakerIndex === 2 ? (
+                                        <div className={styles.speakingWaveContainer}>
+                                            {waveformScales.map((scale, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    className={styles.activeWaveBar}
+                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
+                                                    transition={{
+                                                        duration: 0.6,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                        delay: i * 0.1
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.speakingWavePlaceholder} />
+                                    )}
                                     <div className={styles.tileNameChip}>
-                                        Alex Rivera
+                                        <span>Alex Rivera</span>
+                                        {activeSpeakerIndex === 2 && <span className={styles.speakingPulseDot} />}
                                     </div>
                                 </div>
 
-                                {/* Tile 4: Elena Rostova */}
-                                <div className={styles.videoTile}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarTone3}`}>
+                                {/* Tile 4: Elena Rostova (Rose Tint, Hidden on Short Viewports) */}
+                                <div className={`${styles.videoTile} ${styles.tileHiddenShort} ${activeSpeakerIndex === 3 ? styles.speakingTile : ''}`}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarRose}`}>
                                         E
                                     </div>
+                                    {activeSpeakerIndex === 3 ? (
+                                        <div className={styles.speakingWaveContainer}>
+                                            {waveformScales.map((scale, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    className={styles.activeWaveBar}
+                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
+                                                    transition={{
+                                                        duration: 0.6,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                        delay: i * 0.1
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className={styles.speakingWavePlaceholder} />
+                                    )}
                                     <div className={styles.tileNameChip}>
-                                        Elena Rostova
+                                        <span>Elena Rostova</span>
+                                        {activeSpeakerIndex === 3 && <span className={styles.speakingPulseDot} />}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Window Bottom Mini Dock */}
+                            {/* Window Bottom Centered Pill Dock */}
                             <div className={styles.previewDockMini}>
-                                <div className={styles.dockIconsRow}>
-                                    <div className={styles.dockIconBtn}>
-                                        <Mic size={14} className="text-[#34D399]" />
+                                <div className={styles.dockPill}>
+                                    <div className={styles.dockIconBtn} title="Mic">
+                                        <Mic size={18} strokeWidth={1.75} className="text-[#34D399]" />
                                     </div>
-                                    <div className={styles.dockIconBtn}>
-                                        <Video size={14} />
+                                    <div className={styles.dockIconBtn} title="Camera">
+                                        <Video size={18} strokeWidth={1.75} />
                                     </div>
-                                    <div className={styles.dockIconBtn}>
-                                        <ScreenShare size={14} />
+                                    <div className={styles.dockIconBtn} title="Share screen">
+                                        <ScreenShare size={18} strokeWidth={1.75} />
                                     </div>
-                                    <div className={styles.dockIconBtn}>
-                                        <Disc size={14} className="text-[#F43F5E]" />
+                                    <div className={styles.dockIconBtn} title="Record">
+                                        <Disc size={18} strokeWidth={1.75} className="text-[#F43F5E]" />
                                     </div>
-                                    <div className={styles.dockIconBtn}>
-                                        <PhoneOff size={14} className="text-[#F43F5E]" />
+                                    <div className={styles.dockIconBtn} title="Raise hand">
+                                        <Hand size={18} strokeWidth={1.75} />
                                     </div>
-                                </div>
-                                <div className={styles.latencyTag}>
-                                    <Zap size={13} />
-                                    <span>64ms direct P2P</span>
+                                    <div className={styles.dockIconBtn} title="Chat">
+                                        <MessageSquare size={18} strokeWidth={1.75} />
+                                    </div>
+                                    <div className={`${styles.dockIconBtn} ${styles.dockLeaveBtn}`} title="Leave">
+                                        <PhoneOff size={18} strokeWidth={1.75} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </motion.div>
                 </motion.div>
 
-                {/* Left Footer Trust Row */}
+                {/* Row 3: Left Footer Trust Row */}
                 <div className={styles.leftTrustRow}>
                     <div className={styles.trustItem}>
-                        <Lock size={16} className="text-[#34D399]" />
+                        <Lock size={18} strokeWidth={1.75} className="text-[#34D399]" />
                         <span>Peer-to-peer</span>
                     </div>
                     <div className={styles.trustDivider} />
                     <div className={styles.trustItem}>
-                        <Zap size={16} className="text-[#34D399]" />
-                        <span>Under 100ms</span>
+                        <Zap size={18} strokeWidth={1.75} className="text-[#34D399]" />
+                        <span>Low latency</span>
                     </div>
                     <div className={styles.trustDivider} />
                     <div className={styles.trustItem}>
-                        <HardDrive size={16} className="text-[#34D399]" />
+                        <HardDrive size={18} strokeWidth={1.75} className="text-[#34D399]" />
                         <span>Local recording</span>
                     </div>
                 </div>
@@ -338,19 +464,23 @@ export default function Authentication() {
                 <div className={styles.topRightNav}>
                     <div className={styles.mobileBrandHeader}>
                         <div className={styles.brandIcon}>
-                            <Video size={18} />
+                            <Video size={20} strokeWidth={1.75} />
                         </div>
                         <span className={styles.brandTitle}>PulseMeet</span>
                     </div>
 
                     <div className={styles.backGhostLink} onClick={() => navigate('/')}>
-                        <ArrowLeft size={16} />
+                        <ArrowLeft size={18} strokeWidth={1.75} />
                         <span>Back to home</span>
                     </div>
                 </div>
 
-                {/* Centered Form Card (30rem wide) */}
-                <div className={styles.formCard}>
+                {/* Centered Form Card (30rem wide, Shake on Error) */}
+                <motion.div
+                    className={styles.formCard}
+                    animate={shake ? { x: [0, -8, 8, -4, 4, 0] } : { x: 0 }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                >
                     <div className={styles.formCardGlow} />
 
                     {/* Segmented Control Tabs (44px / 2.75rem high) */}
@@ -419,7 +549,7 @@ export default function Authentication() {
                                     </label>
                                     <div className={`${styles.inputWrapper} ${fieldErrors.name ? styles.inputWrapperError : ''}`}>
                                         <div className={styles.inputIcon}>
-                                            <User size={16} />
+                                            <User size={18} strokeWidth={1.75} />
                                         </div>
                                         <input
                                             id="name-input"
@@ -449,7 +579,7 @@ export default function Authentication() {
                                 </label>
                                 <div className={`${styles.inputWrapper} ${fieldErrors.username ? styles.inputWrapperError : ''}`}>
                                     <div className={styles.inputIcon}>
-                                        <User size={16} />
+                                        <User size={18} strokeWidth={1.75} />
                                     </div>
                                     <input
                                         id="username-input"
@@ -478,7 +608,7 @@ export default function Authentication() {
                                 </label>
                                 <div className={`${styles.inputWrapper} ${fieldErrors.password ? styles.inputWrapperError : ''}`}>
                                     <div className={styles.inputIcon}>
-                                        <KeyRound size={16} />
+                                        <KeyRound size={18} strokeWidth={1.75} />
                                     </div>
                                     <input
                                         id="password-input"
@@ -490,7 +620,10 @@ export default function Authentication() {
                                             setPassword(e.target.value);
                                             if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: null }));
                                         }}
-                                        placeholder="••••••••"
+                                        onKeyDown={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
+                                        onKeyUp={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
+                                        onBlur={() => setCapsLockActive(false)}
+                                        placeholder="Enter your password"
                                         className={styles.inputField}
                                     />
                                     <button
@@ -499,9 +632,12 @@ export default function Authentication() {
                                         className={styles.passwordToggleBtn}
                                         onClick={() => setShowPassword(!showPassword)}
                                     >
-                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        {showPassword ? <EyeOff size={20} strokeWidth={1.75} /> : <Eye size={20} strokeWidth={1.75} />}
                                     </button>
                                 </div>
+                                {capsLockActive && (
+                                    <span className={styles.capsLockWarning}>Caps Lock is ON</span>
+                                )}
                                 {fieldErrors.password && (
                                     <span className={styles.fieldErrorText}>{fieldErrors.password}</span>
                                 )}
@@ -528,7 +664,7 @@ export default function Authentication() {
                                     </label>
                                     <div className={`${styles.inputWrapper} ${fieldErrors.confirmPassword ? styles.inputWrapperError : ''}`}>
                                         <div className={styles.inputIcon}>
-                                            <KeyRound size={16} />
+                                            <KeyRound size={18} strokeWidth={1.75} />
                                         </div>
                                         <input
                                             id="confirm-password-input"
@@ -540,14 +676,27 @@ export default function Authentication() {
                                                 setConfirmPassword(e.target.value);
                                                 if (fieldErrors.confirmPassword) setFieldErrors(prev => ({ ...prev, confirmPassword: null }));
                                             }}
-                                            placeholder="••••••••"
+                                            onKeyDown={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
+                                            onKeyUp={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
+                                            onBlur={() => setCapsLockActive(false)}
+                                            placeholder="Enter your password"
                                             className={styles.inputField}
                                         />
                                     </div>
+                                    {capsLockActive && (
+                                        <span className={styles.capsLockWarning}>Caps Lock is ON</span>
+                                    )}
                                     {fieldErrors.confirmPassword && (
                                         <span className={styles.fieldErrorText}>{fieldErrors.confirmPassword}</span>
                                     )}
                                 </div>
+                            )}
+
+                            {/* Terms Notice (Create account only) */}
+                            {formState === 1 && (
+                                <p className={styles.termsNotice}>
+                                    By creating an account you agree to <span className={styles.termsLink}>Terms</span> and <span className={styles.termsLink}>Privacy</span>
+                                </p>
                             )}
 
                             {/* Primary Button */}
@@ -559,7 +708,7 @@ export default function Authentication() {
                             >
                                 {isLoading ? (
                                     <>
-                                        <Loader2 size={16} className="animate-spin" />
+                                        <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
                                         <span>Processing...</span>
                                     </>
                                 ) : (
@@ -580,10 +729,10 @@ export default function Authentication() {
                         onClick={handleGuestJoin}
                         className={styles.guestSecondaryBtn}
                     >
-                        <Zap size={16} className="text-[#34D399]" />
+                        <Zap size={18} strokeWidth={1.75} className="text-[#34D399]" />
                         <span>Join as guest</span>
                     </button>
-                </div>
+                </motion.div>
 
                 {/* Panel Footer (Centered at bottom) */}
                 <div className={styles.panelFooter}>
