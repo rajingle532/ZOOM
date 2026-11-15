@@ -12,7 +12,13 @@ import {
     EyeOff,
     ArrowLeft,
     Loader2,
-    Mic
+    ShieldCheck,
+    Mic,
+    Users,
+    SignalHigh,
+    Disc,
+    PhoneOff,
+    ScreenShare
 } from 'lucide-react';
 import Snackbar from '@mui/material/Snackbar';
 import { AuthContext } from '../contexts/AuthContext';
@@ -132,11 +138,25 @@ export default function Authentication() {
         }
     };
 
+    // Satellite chips scale/fade in variants
+    const chipVariants = {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: {
+            opacity: 1,
+            scale: 1,
+            transition: { duration: 0.4, delay: 0.4, ease: "easeOut" }
+        }
+    };
+
     return (
         <div className={styles.authContainer}>
             {/* ================= LEFT PANEL (50/50 Desktop Split) ================= */}
             <div className={styles.leftPanel}>
-                {/* Top Left Header with Brand & Ghost Link */}
+                <div className={styles.emeraldGlowTop} />
+                <div className={styles.emeraldGlowBottom} />
+                <div className={styles.noiseOverlay} />
+
+                {/* Top Left Header (Logo Only) */}
                 <div className={styles.leftHeader}>
                     <div className={styles.brandLink} onClick={() => navigate('/')}>
                         <div className={styles.brandIcon}>
@@ -144,16 +164,11 @@ export default function Authentication() {
                         </div>
                         <span className={styles.brandTitle}>PulseMeet</span>
                     </div>
-
-                    <div className={styles.backGhostLink} onClick={() => navigate('/')}>
-                        <ArrowLeft size={15} />
-                        <span>Back to Home</span>
-                    </div>
                 </div>
 
-                {/* Vertically Centered Content Block (max-width 560px) */}
+                {/* Middle Content: Headline, Subtext, Hero Preview (Shared Left Edge) */}
                 <motion.div
-                    className={styles.leftCenterContent}
+                    className={styles.leftMiddleContent}
                     variants={leftContainerVariants}
                     initial="hidden"
                     animate="visible"
@@ -163,111 +178,182 @@ export default function Authentication() {
                     </motion.h1>
 
                     <motion.p className={styles.subtext} variants={leftItemVariants}>
-                        Direct browser-to-browser WebRTC video, audio, and screen sharing. Zero cloud media relay, zero data retention.
+                        Direct peer-to-peer audio, video, and screen sharing. Audio and video go straight between browsers, never through our servers.
                     </motion.p>
 
-                    {/* Large Product Preview Card (min 480px wide) */}
-                    <motion.div
-                        className={styles.previewWindowCard}
-                        variants={leftItemVariants}
-                        animate={{ y: [0, -8, 0] }}
-                        transition={{
-                            duration: 6,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                        }}
-                    >
-                        <div className={styles.windowBar}>
-                            <div className={styles.windowUrl}>
-                                <Lock size={13} className="text-[#34D399]" />
-                                <span>pulsemeet.io/room/alpha-9x</span>
-                            </div>
-                            <div className={styles.recIndicator}>
-                                <div className={styles.recPulseDot} />
-                                <span>REC 00:18:42</span>
-                            </div>
-                        </div>
+                    {/* Large Product Preview Window & Floating Satellite Chips */}
+                    <motion.div className={styles.previewHeroWrapper} variants={leftItemVariants}>
+                        {/* Satellite Chip 1 (Top-Right) */}
+                        <motion.div
+                            className={styles.satelliteChip1}
+                            variants={chipVariants}
+                            animate={{ y: [0, -8, 0] }}
+                            transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                            <Zap size={14} className="text-[#34D399]" />
+                            <span>P2P connected · 64ms</span>
+                        </motion.div>
 
-                        <div className={styles.tilesGrid}>
-                            {/* Host Tile: Active Speaker with Emerald Halo & Wave */}
-                            <div className={`${styles.videoTile} ${styles.speakingTile}`}>
-                                <div className={`${styles.avatarCircle} ${styles.speakingAvatar}`}>
-                                    R
+                        {/* Satellite Chip 2 (Middle-Left) */}
+                        <motion.div
+                            className={styles.satelliteChip2}
+                            variants={chipVariants}
+                            animate={{ y: [0, -8, 0] }}
+                            transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                        >
+                            <HardDrive size={14} className="text-[#34D399]" />
+                            <span>Recording saved to your disk (.webm)</span>
+                        </motion.div>
+
+                        {/* Satellite Chip 3 (Bottom-Right) */}
+                        <motion.div
+                            className={styles.satelliteChip3}
+                            variants={chipVariants}
+                            animate={{ y: [0, -8, 0] }}
+                            transition={{ duration: 5.8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                        >
+                            <ShieldCheck size={14} className="text-[#34D399]" />
+                            <span>0 bytes of video on our servers</span>
+                        </motion.div>
+
+                        {/* The Hero Preview Window Card */}
+                        <div className={styles.previewWindowCard}>
+                            {/* Window Top Bar */}
+                            <div className={styles.windowBar}>
+                                <div className={styles.windowUrl}>
+                                    <Lock size={13} className="text-[#34D399]" />
+                                    <span>pulsemeet.io/room/alpha-9x</span>
                                 </div>
-                                <div className={styles.speakingWaveMini}>
-                                    <div className={styles.waveBar} />
-                                    <div className={styles.waveBar} />
-                                    <div className={styles.waveBar} />
+                                <div className={styles.recIndicator}>
+                                    <div className={styles.recPulseDot} />
+                                    <span>REC 00:18:42</span>
                                 </div>
-                                <div className={styles.tileNameChip}>
-                                    Raj (Host)
+                                <div className={styles.windowMetaRight}>
+                                    <div className={styles.participantCount}>
+                                        <Users size={13} />
+                                        <span>4</span>
+                                    </div>
+                                    <SignalHigh size={13} className="text-[#34D399]" />
                                 </div>
                             </div>
 
-                            {/* Remote Peer Tile */}
-                            <div className={styles.videoTile}>
-                                <div className={styles.avatarCircle}>
-                                    S
+                            {/* 2x2 Grid of 16:9 Tiles */}
+                            <div className={styles.tilesGrid}>
+                                {/* Tile 1: Host Raj (Active Speaker with Emerald Ring) */}
+                                <div className={`${styles.videoTile} ${styles.speakingTile}`}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarHost}`}>
+                                        R
+                                    </div>
+                                    <div className={styles.speakingWaveMini}>
+                                        <div className={styles.waveBar} />
+                                        <div className={styles.waveBar} />
+                                        <div className={styles.waveBar} />
+                                    </div>
+                                    <div className={styles.tileNameChip}>
+                                        Raj (Host) 🎤
+                                    </div>
                                 </div>
-                                <div className={styles.tileNameChip}>
-                                    Sarah Miller
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className={styles.previewDockMini}>
-                            <div className={styles.dockIconsRow}>
-                                <div className={styles.dockIconBtn}>
-                                    <Mic size={14} className="text-[#34D399]" />
+                                {/* Tile 2: Sarah Miller */}
+                                <div className={styles.videoTile}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarTone1}`}>
+                                        S
+                                    </div>
+                                    <div className={styles.tileNameChip}>
+                                        Sarah Miller
+                                    </div>
                                 </div>
-                                <div className={styles.dockIconBtn}>
-                                    <Video size={14} />
+
+                                {/* Tile 3: Alex Rivera */}
+                                <div className={styles.videoTile}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarTone2}`}>
+                                        A
+                                    </div>
+                                    <div className={styles.tileNameChip}>
+                                        Alex Rivera
+                                    </div>
+                                </div>
+
+                                {/* Tile 4: Elena Rostova */}
+                                <div className={styles.videoTile}>
+                                    <div className={`${styles.avatarCircle} ${styles.avatarTone3}`}>
+                                        E
+                                    </div>
+                                    <div className={styles.tileNameChip}>
+                                        Elena Rostova
+                                    </div>
                                 </div>
                             </div>
-                            <div className={styles.latencyTag}>
-                                <Zap size={13} />
-                                <span>64ms direct P2P</span>
+
+                            {/* Window Bottom Mini Dock */}
+                            <div className={styles.previewDockMini}>
+                                <div className={styles.dockIconsRow}>
+                                    <div className={styles.dockIconBtn}>
+                                        <Mic size={14} className="text-[#34D399]" />
+                                    </div>
+                                    <div className={styles.dockIconBtn}>
+                                        <Video size={14} />
+                                    </div>
+                                    <div className={styles.dockIconBtn}>
+                                        <ScreenShare size={14} />
+                                    </div>
+                                    <div className={styles.dockIconBtn}>
+                                        <Disc size={14} className="text-[#F43F5E]" />
+                                    </div>
+                                    <div className={styles.dockIconBtn}>
+                                        <PhoneOff size={14} className="text-[#F43F5E]" />
+                                    </div>
+                                </div>
+                                <div className={styles.latencyTag}>
+                                    <Zap size={13} />
+                                    <span>64ms direct P2P</span>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
                 </motion.div>
 
-                {/* Bottom Row: 3 Small Trust Items (14px) */}
+                {/* Left Footer Trust Row */}
                 <div className={styles.leftTrustRow}>
                     <div className={styles.trustItem}>
-                        <Lock size={16} />
+                        <Lock size={16} className="text-[#34D399]" />
                         <span>Peer-to-peer</span>
                     </div>
+                    <div className={styles.trustDivider} />
                     <div className={styles.trustItem}>
-                        <Zap size={16} />
+                        <Zap size={16} className="text-[#34D399]" />
                         <span>Under 100ms</span>
                     </div>
+                    <div className={styles.trustDivider} />
                     <div className={styles.trustItem}>
-                        <HardDrive size={16} />
+                        <HardDrive size={16} className="text-[#34D399]" />
                         <span>Local recording</span>
                     </div>
                 </div>
             </div>
 
-            {/* ================= RIGHT PANEL (Form Experience) ================= */}
+            {/* ================= RIGHT PANEL ================= */}
             <div className={styles.rightPanel}>
-                {/* Mobile Top Bar (visible when left panel is hidden below 1024px) */}
-                <div className={styles.mobileTopBar}>
-                    <div className={styles.brandLink} onClick={() => navigate('/')}>
+                {/* Top-Right "Back to Home" Ghost Button */}
+                <div className={styles.topRightNav}>
+                    <div className={styles.mobileBrandHeader}>
                         <div className={styles.brandIcon}>
                             <Video size={18} />
                         </div>
                         <span className={styles.brandTitle}>PulseMeet</span>
                     </div>
+
                     <div className={styles.backGhostLink} onClick={() => navigate('/')}>
-                        <ArrowLeft size={15} />
-                        <span>Home</span>
+                        <ArrowLeft size={16} />
+                        <span>Back to home</span>
                     </div>
                 </div>
 
-                {/* Centered Form Card (440px wide) */}
+                {/* Centered Form Card (30rem wide) */}
                 <div className={styles.formCard}>
-                    {/* Segmented Control Tabs (44px high) */}
+                    <div className={styles.formCardGlow} />
+
+                    {/* Segmented Control Tabs (44px / 2.75rem high) */}
                     <div className={styles.segmentedControl} role="tablist">
                         <motion.div
                             className={styles.activeTabIndicator}
@@ -497,13 +583,11 @@ export default function Authentication() {
                         <Zap size={16} className="text-[#34D399]" />
                         <span>Join as guest</span>
                     </button>
+                </div>
 
-                    {/* Footer Legal Notice (13px) */}
-                    <div className={styles.legalFooter}>
-                        By continuing you agree to{' '}
-                        <span className={styles.legalLink} onClick={() => navigate('/')}>Terms</span> and{' '}
-                        <span className={styles.legalLink} onClick={() => navigate('/')}>Privacy</span>.
-                    </div>
+                {/* Panel Footer (Centered at bottom) */}
+                <div className={styles.panelFooter}>
+                    © 2026 PulseMeet · Privacy · Terms · Status
                 </div>
             </div>
 
