@@ -1,33 +1,29 @@
 import httpStatus from "http-status";
-import { User } from "../models/user.model.js";
-import { Meeting } from "../models/meeting.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { User } from "../models/user.model.js";
+import { Meeting } from "../models/meeting.model.js";
+import { config } from "../config.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "pulse_meet_super_secret_jwt_key_2026_xyz";
+// Standard precomputed 60-character bcrypt hash to normalize comparison timing
+const DUMMY_BCRYPT_HASH = "$2b$10$wT8yG9xM8pBq2eF7vD1hce5h8eB4Q6R7uM1rS8nB7oN3vC5wX7yG";
 
 const login = async (req, res) => {
     const { username, password } = req.body ?? {};
 
-    if (!username || !password) {
-        return res.status(httpStatus.BAD_REQUEST).json({
-            message: "Please provide username and password"
-        });
-    }
-
     try {
-        const user = await User.findOne({ username });
+        // Query user explicitly including the select:false password field
+        const user = await User.findOne({ username }).select("+password");
 
         if (!user) {
-            return res.status(httpStatus.NOT_FOUND).json({
-                message: "User not found"
+            // Perform dummy compare to equalize response timing against user enumeration
+            await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: "Invalid username or password"
             });
         }
 
-        const isPasswordValid = await bcrypt.compare(
-            password,
-            user.password
-        );
+        const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
             return res.status(httpStatus.UNAUTHORIZED).json({
@@ -35,30 +31,25 @@ const login = async (req, res) => {
             });
         }
 
-        // Generate signed JWT
+        // Generate signed JWT without writing it back to the database
         const token = jwt.sign(
             { id: user._id, username: user.username, name: user.name },
-            JWT_SECRET,
+            config.jwtSecret,
             { expiresIn: "7d" }
         );
 
-        user.token = token;
-        await user.save();
-
         return res.status(httpStatus.OK).json({
-            token: token,
+            token,
             user: {
                 id: user._id,
                 name: user.name,
                 username: user.username
             }
         });
-
     } catch (e) {
-        console.error("Login failed:", e);
-
+        console.error("Login internal error:", e);
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-            message: `Something went wrong: ${e.message}`
+            message: "Internal server error"
         });
     }
 };
@@ -66,14 +57,11 @@ const login = async (req, res) => {
 const register = async (req, res) => {
     const { name, username, password } = req.body ?? {};
 
-    if (!name || !username || !password) {
-        return res.status(httpStatus.BAD_REQUEST).json({
-            message: "Please provide name, username, and password"
-        });
-    }
-
     try {
-        const existingUser = await User.findOne({ username });
+        // Case-insensitive duplicate check (e.g., 'Raj' vs 'raj')
+        const existingUser = await User.findOne({
+            username: { $regex: new RegExp(`^${username}$`, "i") }
+        });
 
         if (existingUser) {
             return res.status(httpStatus.CONFLICT).json({
@@ -94,12 +82,10 @@ const register = async (req, res) => {
         return res.status(httpStatus.CREATED).json({
             message: "User Registered Successfully"
         });
-
     } catch (e) {
-        console.error("User registration failed:", e);
-
+        console.error("User registration internal error:", e);
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-            message: `User registration failed: ${e.message}`
+            message: "Internal server error"
         });
     }
 };
@@ -108,28 +94,50 @@ const getUserHistory = async (req, res) => {
     try {
         const username = req.user?.username;
         if (!username) {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "User not authenticated" });
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: "User not authenticated"
+            });
         }
 
         const meetings = await Meeting.find({ user_id: username }).sort({ date: -1 });
-        return res.json(meetings);
+        return res.status(httpStatus.OK).json(meetings);
     } catch (e) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Something went wrong: ${e.message}` });
+        console.error("Get user history internal error:", e);
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: "Internal server error"
+        });
     }
 };
 
 const addToHistory = async (req, res) => {
-    const { meeting_code, meetingCode } = req.body;
-    const code = meeting_code || meetingCode;
+    const code = req.body?.meetingCode;
 
     if (!code) {
-        return res.status(httpStatus.BAD_REQUEST).json({ message: "Meeting code is required" });
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: "Meeting code is required"
+        });
     }
 
     try {
         const username = req.user?.username;
         if (!username) {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "User not authenticated" });
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: "User not authenticated"
+            });
+        }
+
+        // De-duplicate: skip creating row if added within the last 2 minutes
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        const recentMeeting = await Meeting.findOne({
+            user_id: username,
+            meetingCode: code,
+            date: { $gte: twoMinutesAgo }
+        });
+
+        if (recentMeeting) {
+            return res.status(httpStatus.OK).json({
+                message: "Added code to history"
+            });
         }
 
         const newMeeting = new Meeting({
@@ -139,9 +147,14 @@ const addToHistory = async (req, res) => {
 
         await newMeeting.save();
 
-        return res.status(httpStatus.CREATED).json({ message: "Added code to history" });
+        return res.status(httpStatus.CREATED).json({
+            message: "Added code to history"
+        });
     } catch (e) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ message: `Something went wrong: ${e.message}` });
+        console.error("Add to history internal error:", e);
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: "Internal server error"
+        });
     }
 };
 

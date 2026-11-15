@@ -1,14 +1,13 @@
 import jwt from "jsonwebtoken";
 import httpStatus from "http-status";
+import { config } from "../config.js";
 
 export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"] || req.headers["Authorization"];
-    let token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-
-    // Graceful fallback for backward compatibility
-    if (!token) {
-        token = req.query?.token || req.body?.token;
-    }
+    const token =
+        authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+            ? authHeader.split(" ")[1]
+            : null;
 
     if (!token) {
         return res.status(httpStatus.UNAUTHORIZED).json({
@@ -17,10 +16,7 @@ export const authenticateToken = (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET || "pulse_meet_super_secret_jwt_key_2026_xyz"
-        );
+        const decoded = jwt.verify(token, config.jwtSecret);
         req.user = decoded;
         next();
     } catch (err) {
