@@ -11,12 +11,20 @@ if (JWT_SECRET.length < 32) {
     throw new Error("FATAL CONFIG ERROR: JWT_SECRET must be at least 32 characters long.");
 }
 
+// Reject insecure placeholder values (case-insensitive)
+if (/your_|changeme|secret_here/i.test(JWT_SECRET)) {
+    throw new Error(
+        "FATAL CONFIG ERROR: Insecure placeholder value detected in JWT_SECRET. Please configure a unique secret."
+    );
+}
+
 const MONGODB_URI = process.env.MONGODB_URI;
 if (!MONGODB_URI) {
     throw new Error("FATAL CONFIG ERROR: MONGODB_URI environment variable is missing.");
 }
 
 const PORT = parseInt(process.env.PORT, 10) || 8000;
+const BCRYPT_ROUNDS = 10;
 
 // Parse comma-separated list of allowed origins
 const rawOrigins = (process.env.ALLOWED_ORIGINS || "")
@@ -38,6 +46,7 @@ export const config = {
     port: PORT,
     mongoUri: MONGODB_URI,
     jwtSecret: JWT_SECRET,
+    bcryptRounds: BCRYPT_ROUNDS,
     allowedOrigins: rawOrigins,
     nodeEnv: NODE_ENV,
     isProduction,

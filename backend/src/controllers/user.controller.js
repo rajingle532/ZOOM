@@ -5,15 +5,22 @@ import { User } from "../models/user.model.js";
 import { Meeting } from "../models/meeting.model.js";
 import { config } from "../config.js";
 
-// Standard precomputed 60-character bcrypt hash to normalize comparison timing
-const DUMMY_BCRYPT_HASH = "$2b$10$wT8yG9xM8pBq2eF7vD1hce5h8eB4Q6R7uM1rS8nB7oN3vC5wX7yG";
+// Precomputed valid bcrypt hash generated at startup to equalize timing against user enumeration
+const DUMMY_BCRYPT_HASH = bcrypt.hashSync("dummy-password-for-timing", config.bcryptRounds);
 
 const login = async (req, res) => {
-    const { username, password } = req.body ?? {};
+    const identifier = (req.body?.identifier || req.body?.username || "").trim();
+    const { password } = req.body ?? {};
 
     try {
-        // Query user explicitly including the select:false password field
-        const user = await User.findOne({ username }).select("+password");
+        let user;
+        if (identifier.includes("@")) {
+            user = await User.findOne({ email: identifier.toLowerCase() }).select("+password");
+        } else {
+            user = await User.findOne({ username: identifier })
+                .collation({ locale: "en", strength: 2 })
+                .select("+password");
+        }
 
         if (!user) {
             // Perform dummy compare to equalize response timing against user enumeration
@@ -31,23 +38,28 @@ const login = async (req, res) => {
             });
         }
 
-        // Generate signed JWT without writing it back to the database
+        // Generate signed JWT using stored user.username
         const token = jwt.sign(
             { id: user._id, username: user.username, name: user.name },
             config.jwtSecret,
             { expiresIn: "7d" }
         );
 
+        const userResponse = {
+            id: user._id,
+            name: user.name,
+            username: user.username
+        };
+        if (user.email) {
+            userResponse.email = user.email;
+        }
+
         return res.status(httpStatus.OK).json({
             token,
-            user: {
-                id: user._id,
-                name: user.name,
-                username: user.username
-            }
+            user: userResponse
         });
     } catch (e) {
-        console.error("Login internal error:", e);
+        console.error(`Login internal error: ${e.name} ${e.code || ""}`);
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
             message: "Internal server error"
         });
@@ -55,35 +67,73 @@ const login = async (req, res) => {
 };
 
 const register = async (req, res) => {
-    const { name, username, password } = req.body ?? {};
+    const { name, username, email, password } = req.body ?? {};
 
     try {
-        // Case-insensitive duplicate check (e.g., 'Raj' vs 'raj')
-        const existingUser = await User.findOne({
-            username: { $regex: new RegExp(`^${username}$`, "i") }
+        const lowerEmail = email ? email.toLowerCase().trim() : undefined;
+
+        // Duplicate check for email
+        if (lowerEmail) {
+            const existingEmail = await User.findOne({ email: lowerEmail });
+            if (existingEmail) {
+                return res.status(httpStatus.CONFLICT).json({
+                    message: "User already exists",
+                    errors: {
+                        email: "This email is already registered"
+                    }
+                });
+            }
+        }
+
+        // Case-insensitive duplicate check using collation for username
+        const existingUser = await User.findOne({ username }).collation({
+            locale: "en",
+            strength: 2
         });
 
         if (existingUser) {
             return res.status(httpStatus.CONFLICT).json({
-                message: "User already exists"
+                message: "User already exists",
+                errors: {
+                    username: "This username is taken"
+                }
             });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, config.bcryptRounds);
 
-        const newUser = new User({
+        const userData = {
             name,
             username,
             password: hashedPassword
-        });
+        };
+        if (lowerEmail) {
+            userData.email = lowerEmail;
+        }
 
+        const newUser = new User(userData);
         await newUser.save();
 
         return res.status(httpStatus.CREATED).json({
             message: "User Registered Successfully"
         });
     } catch (e) {
-        console.error("User registration internal error:", e);
+        if (e.code === 11000) {
+            const keyPattern = e.keyPattern || {};
+            const errors = {};
+            if (keyPattern.email) {
+                errors.email = "This email is already registered";
+            } else if (keyPattern.username) {
+                errors.username = "This username is taken";
+            } else {
+                errors.username = "User already exists";
+            }
+            return res.status(httpStatus.CONFLICT).json({
+                message: "User already exists",
+                errors
+            });
+        }
+        console.error(`User registration internal error: ${e.name} ${e.code || ""}`);
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
             message: "Internal server error"
         });

@@ -47,14 +47,8 @@ app.get("/health", (req, res) => {
     return res.status(200).json({ ok: true });
 });
 
-// Legacy test route
-app.get("/home", (req, res) => {
-    return res.json({ hello: "World" });
-});
-
-// API Routes (mounted on both /api/v1/users and legacy /api/users for backward compatibility)
+// Primary API Routes
 app.use("/api/v1/users", userRoutes);
-app.use("/api/users", userRoutes);
 
 // 404 JSON Handler for unmatched routes
 app.use((req, res) => {
@@ -66,7 +60,7 @@ app.use((err, req, res, next) => {
     const status = err.status || err.statusCode || 500;
     console.error(`[Error] ${req.method} ${req.originalUrl}:`, err.message);
 
-    // Conceal internal error details in all 500 responses (Addendum B)
+    // Conceal internal error details in all 500 responses
     if (status === 500) {
         return res.status(500).json({ message: "Internal server error" });
     }
@@ -85,15 +79,15 @@ const start = async () => {
     });
 };
 
-// Graceful Shutdown Handlers
+// Graceful Shutdown Handlers: io.close() closes sockets and underlying HTTP server
 let isShuttingDown = false;
 const gracefulShutdown = async (signal) => {
     if (isShuttingDown) return;
     isShuttingDown = true;
     console.log(`\n[Process] ${signal} received. Initiating graceful shutdown...`);
 
-    server.close(() => {
-        console.log("[Process] HTTP and Socket.io server closed.");
+    io.close(() => {
+        console.log("[Process] Socket.io and HTTP server closed.");
         mongoose.connection
             .close(false)
             .then(() => {

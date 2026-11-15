@@ -3,8 +3,8 @@ import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 
 const ALLOWED_EMOJIS = new Set(["👏", "❤️", "👍", "🎉", "😂"]);
-const ROOM_CODE_REGEX = /^[a-zA-Z0-9-_]{3,64}$/;
-const MAX_SIGNAL_BYTES = 64 * 1024; // 64 KB limit per Addendum F
+const ROOM_CODE_REGEX = /^[a-zA-Z0-9_-]{3,64}$/;
+const MAX_SIGNAL_BYTES = 64 * 1024; // 64 KB limit
 const MAX_CHAT_LENGTH = 1000;
 const MAX_NAME_LENGTH = 30;
 
@@ -31,6 +31,7 @@ const sanitizeName = (rawName) => {
 
 export const connectToSocket = (server) => {
     const io = new Server(server, {
+        maxHttpBufferSize: 1e5,
         cors: {
             origin: (origin, callback) => {
                 if (!origin) return callback(null, true);
@@ -52,7 +53,7 @@ export const connectToSocket = (server) => {
                 const decoded = jwt.verify(token, config.jwtSecret);
                 socket.user = decoded;
             } catch {
-                // Addendum E: Invalid or expired token treated as Guest (do not reject)
+                // Invalid or expired token treated as Guest (do not reject)
                 socket.user = null;
             }
         } else {
@@ -74,9 +75,28 @@ export const connectToSocket = (server) => {
         console.log(`[Socket] Connected: ${socket.id} (user: ${clientIdentity})`);
 
         socket.on("join-call", (path) => {
+            // Early return if socket is already in a room
+            if (socket.roomCode) {
+                console.warn(`[Socket] ${socket.id} attempted duplicate join-call while already in '${socket.roomCode}'`);
+                return;
+            }
+
+            // Validate non-empty string room code input
+            if (!path || typeof path !== "string" || path.trim().length === 0) {
+                socket.emit("join-error", {
+                    code: "invalid-room",
+                    message: "Room code is required"
+                });
+                return;
+            }
+
             const roomCode = resolveRoomCode(path);
             if (!roomCode) {
                 console.warn(`[Socket] ${socket.id} attempted to join invalid room code: ${path}`);
+                socket.emit("join-error", {
+                    code: "invalid-room",
+                    message: "Room code must be 3-64 characters: letters, numbers, - or _"
+                });
                 return;
             }
 
@@ -136,7 +156,6 @@ export const connectToSocket = (server) => {
             // Trust authenticated name first, fallback to sanitized client sender
             const senderName = socket.user?.name || socket.user?.username || sanitizeName(sender);
 
-            // Log event without exposing message body
             console.log(`[Chat] Message broadcast in '${roomCode}' by ${senderName} (${socket.id})`);
             io.to(roomCode).emit("chat-message", trimmedMessage, senderName, socket.id);
         });
