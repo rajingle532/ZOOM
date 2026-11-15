@@ -6,12 +6,14 @@ PulseMeet is a high-performance, browser-native video conferencing application b
 
 ## 🌟 Key Features
 
-- **Peer-to-Peer Video & Audio:** Direct browser-to-browser media streaming with low latency via WebRTC.
-- **Dynamic Screen Sharing:** Instant screen and tab sharing utilizing the browser `MediaDevices.getDisplayMedia` API.
-- **Real-Time Signaling:** Robust WebSocket signaling server powered by Socket.io for SDP offer/answer exchange and ICE candidate negotiation.
-- **In-Meeting Real-Time Chat:** Low-latency messaging during calls with unread message notification badges.
-- **Secure Authentication:** User registration, secure password hashing with Bcrypt, and token-based session management.
-- **Meeting Activity & History:** Automatic tracking of past meetings and quick re-join capabilities.
+- **Peer-to-Peer Video & Audio:** Direct browser-to-browser media streaming with sub-100ms latency via modern WebRTC tracks API (`addTrack`, `ontrack`, `replaceTrack`).
+- **Active Speaker Detection:** Real-time speech analysis using the Web Audio API `AudioContext` and `AnalyserNode` with dynamic glowing speaker indicators.
+- **Local Client-Side Recording:** High-definition video recording via the browser's native `MediaRecorder` API that exports directly to WebM format with zero cloud data storage risk.
+- **Dynamic Screen Sharing:** One-click tab and desktop screen sharing with live stream renegotiation.
+- **Interactive Reactions & Hand Raising:** Floating emoji reactions (👏, ❤️, 👍, 🎉, 😂) and a synchronized "Raise Hand" queue.
+- **In-Meeting Real-Time Chat:** Low-latency chat drawer with sender tags, timestamps, and unread badges.
+- **Stateless JWT Authentication:** Secure cryptographic token authentication with bcrypt password hashing and token interceptors.
+- **Startup-Grade UI:** High-converting, human-designed SaaS interface built with custom design tokens, dark obsidian palettes, and Google Meet-standard video grids.
 
 ---
 
