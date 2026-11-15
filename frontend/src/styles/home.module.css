@@ -1,0 +1,363 @@
+/* ================= PulseMeet Dashboard Styles (Startup-Grade V2) ================= */
+
+.homeWrapper {
+    min-height: 100vh;
+    width: 100vw;
+    background-color: var(--pm-bg, #111118);
+    color: var(--pm-text-primary, #ffffff);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ================= Header Navbar ================= */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 3.5rem;
+    background: var(--pm-surface, #1c1c27);
+    box-shadow: var(--pm-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.25));
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.logoIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--pm-primary, #635bff) 0%, #8b5cf6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(99, 91, 255, 0.35);
+    color: #fff;
+}
+
+.brandTitle {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--pm-text-primary, #ffffff);
+    margin: 0;
+}
+
+.navRight {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.userBadge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 14px 4px 6px;
+    background: var(--pm-surface-elevated, #242433);
+    border-radius: 30px;
+}
+
+.userAvatar {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, var(--pm-primary, #635bff) 0%, #8b5cf6 100%) !important;
+}
+
+.userName {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--pm-text-primary, #ffffff);
+}
+
+/* ================= Dashboard Main Container ================= */
+.mainContainer {
+    flex: 1;
+    max-width: 1140px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 3rem 2rem 4rem 2rem;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.welcomeHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2.2rem;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.welcomeTitle {
+    font-size: 2.1rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.35rem;
+    color: var(--pm-text-primary, #ffffff);
+}
+
+.welcomeSubtitle {
+    font-size: 1rem;
+    color: var(--pm-text-secondary, #b4b4c7);
+}
+
+.statusPill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--pm-surface, #1c1c27);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--pm-teal, #00d4aa);
+    box-shadow: var(--pm-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.25));
+}
+
+.statusPulse {
+    width: 8px;
+    height: 8px;
+    background: var(--pm-teal, #00d4aa);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--pm-teal, #00d4aa);
+}
+
+/* ================= Quick Action Cards Grid ================= */
+.actionCardsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 2.5rem;
+}
+
+.actionCard {
+    background: var(--pm-surface, #1c1c27);
+    border-radius: var(--pm-radius-xl, 20px);
+    padding: 2.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: var(--pm-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.35));
+    min-height: 250px;
+    box-sizing: border-box;
+}
+
+.actionCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--pm-shadow-lg, 0 16px 48px rgba(0, 0, 0, 0.5));
+}
+
+.cardIconCircle {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.2rem;
+}
+
+.cardTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--pm-text-primary, #ffffff);
+    margin-bottom: 0.4rem;
+}
+
+.cardDesc {
+    font-size: 0.9rem;
+    color: var(--pm-text-secondary, #b4b4c7);
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.instantMeetingBtn {
+    background: var(--pm-primary, #635bff) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    padding: 12px 0 !important;
+    border-radius: 12px !important;
+    text-transform: none !important;
+    font-size: 0.95rem !important;
+    box-shadow: 0 8px 20px rgba(99, 91, 255, 0.35) !important;
+    transition: all 0.2s ease !important;
+}
+
+.instantMeetingBtn:hover {
+    background: var(--pm-primary-hover, #7c75ff) !important;
+    box-shadow: 0 10px 24px rgba(99, 91, 255, 0.5) !important;
+}
+
+.joinInputGroup {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.joinBtn {
+    background: var(--pm-teal, #00d4aa) !important;
+    color: #111118 !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    border-radius: 10px !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 14px rgba(0, 212, 170, 0.3) !important;
+    white-space: nowrap !important;
+}
+
+.joinBtn:hover {
+    background: #00bf99 !important;
+}
+
+/* ================= Platform Highlights Strip ================= */
+.platformMetricsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 2.8rem;
+}
+
+.metricCard {
+    background: var(--pm-surface, #1c1c27);
+    padding: 1rem 1.4rem;
+    border-radius: var(--pm-radius-md, 12px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--pm-shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.25));
+}
+
+.metricIcon {
+    font-size: 1.4rem;
+}
+
+.metricText {
+    display: flex;
+    flex-direction: column;
+}
+
+.metricLabel {
+    font-size: 0.78rem;
+    color: var(--pm-text-tertiary, #6c6c80);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+.metricValue {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--pm-text-primary, #ffffff);
+}
+
+/* ================= Recent Meetings History Section ================= */
+.recentSection {
+    background: var(--pm-surface, #1c1c27);
+    border-radius: var(--pm-radius-xl, 20px);
+    padding: 2rem;
+    box-shadow: var(--pm-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.35));
+}
+
+.recentSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.4rem;
+}
+
+.recentSectionTitle {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--pm-text-primary, #ffffff);
+}
+
+.viewAllLink {
+    color: var(--pm-primary-hover, #7c75ff);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.viewAllLink:hover {
+    color: #ffffff;
+}
+
+.recentList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.recentItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    background: var(--pm-surface-elevated, #242433);
+    border-radius: var(--pm-radius-md, 12px);
+    transition: background 0.2s ease;
+}
+
+.recentItem:hover {
+    background: #2a2a3b;
+}
+
+.recentCodeGroup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.recentCode {
+    font-family: monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--pm-text-primary, #ffffff);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.recentDate {
+    font-size: 0.82rem;
+    color: var(--pm-text-tertiary, #6c6c80);
+}
+
+.recentActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.emptyRecent {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--pm-text-tertiary, #6c6c80);
+}
+
+/* ================= Responsive Adjustments ================= */
+@media (max-width: 900px) {
+    .navbar {
+        padding: 1rem 1.5rem;
+    }
+    .actionCardsGrid {
+        grid-template-columns: 1fr;
+    }
+    .platformMetricsGrid {
+        grid-template-columns: 1fr;
+    }
+}
