@@ -1,4 +1,9 @@
-/* ================= PulseMeet Linear/Vercel/Clerk-Grade Auth Styles (Fluid Scale v3) ================= */
+/* ================= PulseMeet Linear/Vercel/Clerk-Grade Auth Styles (Round 3.1 + Addendum) ================= */
+
+:root {
+  --pm-accent: #34D399;
+  --pm-danger: #F43F5E;
+}
 
 .authContainer {
   min-height: 100vh;
@@ -12,6 +17,39 @@
   position: relative;
 }
 
+@media (min-width: 1024px) {
+  .authContainer {
+    height: 100vh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+}
+
+/* ================= Color & Animation Utility Classes (Replacing Tailwind) ================= */
+.iconAccent {
+  color: var(--pm-accent, #34D399);
+}
+
+.iconDanger {
+  color: var(--pm-danger, #F43F5E);
+}
+
+.spin {
+  animation: pmSpin 0.8s linear infinite;
+}
+
+@keyframes pmSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
 /* ================= LEFT PANEL (50% at >=1024px, Grid Rows: auto 1fr auto) ================= */
 .leftPanel {
   flex: 1;
@@ -20,11 +58,17 @@
   background-color: #0A0A0B;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  padding: clamp(2rem, 3vw, 4rem);
+  padding: clamp(1.5rem, 3.5vh, 2.5rem) clamp(2rem, 3vw, 4rem) clamp(1.5rem, 3vh, 2.5rem);
   box-sizing: border-box;
   position: relative;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.leftPanel::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 /* Background Grid (3rem cells, masked with radial gradient) */
@@ -78,11 +122,12 @@
   z-index: 0;
 }
 
-/* ================= Row 1: Logo Only ================= */
+/* ================= Row 1: Logo Only (Height: 2.25rem for pixel-perfect alignment) ================= */
 .leftHeader {
   grid-row: 1;
   display: flex;
   align-items: center;
+  height: 2.25rem;
   width: 100%;
   max-width: 46rem;
   z-index: 2;
@@ -108,6 +153,7 @@
   justify-content: center;
   color: #34D399;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
 }
 
 .brandTitle {
@@ -117,7 +163,7 @@
   color: #EDEDEF;
 }
 
-/* ================= Row 2: Headline, Subtext, Preview (Centered Vertically with Gap) ================= */
+/* ================= Row 2: Headline, Subtext, Preview ================= */
 .leftMiddleContent {
   grid-row: 2;
   width: 100%;
@@ -126,15 +172,15 @@
   flex-direction: column;
   justify-content: center;
   margin: auto 0;
-  padding: clamp(1.5rem, 3.5vh, 4rem) 0;
+  padding: clamp(1.5rem, 3vh, 3rem) 0;
   z-index: 2;
   min-height: 0;
 }
 
 .headline {
-  font-size: clamp(2.5rem, 3.8vw, 4.5rem);
+  font-size: clamp(2.25rem, 3.2vw, 3.75rem);
   font-weight: 600;
-  line-height: 1.02;
+  line-height: 1.05;
   letter-spacing: -0.04em;
   color: #EDEDEF;
   margin: 0 0 1rem 0;
@@ -149,22 +195,23 @@
   font-size: 1.125rem;
   line-height: 1.5;
   color: #A1A1AA;
-  max-width: 42rem;
-  margin: 0 0 clamp(1.25rem, 2.5vh, 2rem) 0;
+  max-width: 36rem;
+  text-wrap: pretty;
+  margin: 0 0 clamp(1.5rem, 3vh, 3rem) 0;
 }
 
-/* ================= Preview Container & Satellite Chips ================= */
-.previewHeroWrapper {
+/* ================= Preview Wrapper & Satellite Chips (Round 3.1) ================= */
+.previewWrap {
   position: relative;
   width: 100%;
   max-width: 46rem;
 }
 
-/* Floating Satellite Chip A (Top-Right, Strictly Outside Preview) */
+/* Floating Satellite Chip A (Top-Right: top -1.75rem, right -1.25rem) */
 .satelliteChipA {
   position: absolute;
-  top: -1.25rem;
-  right: -1.5rem;
+  top: -1.75rem;
+  right: -1.25rem;
   background: rgba(17, 17, 19, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -178,15 +225,15 @@
   align-items: center;
   gap: 0.5rem;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
-  z-index: 5;
+  z-index: 10;
   pointer-events: none;
 }
 
-/* Floating Satellite Chip B (Bottom-Left, Strictly Outside Preview) */
+/* Floating Satellite Chip B (Bottom-Left: bottom -1.75rem, left -1.25rem) */
 .satelliteChipB {
   position: absolute;
-  bottom: -1.25rem;
-  left: -1.5rem;
+  bottom: -1.75rem;
+  left: -1.25rem;
   background: rgba(17, 17, 19, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -200,37 +247,37 @@
   align-items: center;
   gap: 0.5rem;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
-  z-index: 5;
+  z-index: 10;
   pointer-events: none;
 }
 
-/* The Hero Preview Window Card (Clamp Height, Mask Bleed) */
-.previewWindowCard {
+/* The Hero Preview Window Card (Clamp Height, Overflow Hidden, Flex Column) */
+.previewCard {
   width: 100%;
-  max-height: clamp(18rem, 42vh, 34rem);
+  height: clamp(22rem, 46vh, 34rem);
   background: #111113;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.25rem;
-  padding: 1.15rem;
+  border-radius: 1rem;
   box-shadow: 0 28px 64px -16px rgba(0, 0, 0, 0.7);
   box-sizing: border-box;
-  mask-image: linear-gradient(to bottom right, black 88%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom right, black 88%, transparent 100%);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  overflow: hidden;
+  position: relative;
 }
 
+/* 1. Top Bar (Auto Height) */
 .windowBar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.625rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   font-family: 'Geist Mono', monospace;
   font-size: 0.8125rem;
   color: #8B8B94;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .windowUrl {
@@ -277,50 +324,55 @@
   font-size: 0.75rem;
 }
 
-/* 2x2 Grid of 16:9 Tiles (Switches to 1x2 when height < 860px) */
-.tilesGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-  flex: 1;
+/* 2. Stage (Flex: 1 1 0, Min-Height: 0, 2x2 Grid) */
+.stage {
+  flex: 1 1 0;
   min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  box-sizing: border-box;
 }
 
-.videoTile {
-  aspect-ratio: 16 / 9;
+/* Tiles: NO aspect ratio, min-height 0, fills cell */
+.tile {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
   background: #18181B;
   border-radius: 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: box-shadow 0.25s ease;
 }
 
+/* Speaking ring: Inset box-shadow + soft outer glow (NEVER extends outside tile) */
 .speakingTile {
-  border: 2px solid #34D399 !important;
-  box-shadow: 0 0 16px rgba(52, 211, 153, 0.35);
+  box-shadow: inset 0 0 0 2px #34D399, 0 0 16px rgba(52, 211, 153, 0.35);
 }
 
 .avatarCircle {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: clamp(2.25rem, 5vh, 3.5rem);
+  height: clamp(2.25rem, 5vh, 3.5rem);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 2.5vh, 1.375rem);
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
-/* Distinct Subtle Neutral Tints (15% background + matching text) */
+/* Subtle Neutral Tints (15% background + matching text) */
 .avatarEmerald {
   background: rgba(52, 211, 153, 0.15);
   color: #34D399;
@@ -367,7 +419,7 @@
   position: absolute;
   bottom: 0.5rem;
   left: 0.5rem;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
   color: #EDEDEF;
   font-size: 0.8125rem;
@@ -377,6 +429,10 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: calc(100% - 1rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .speakingPulseDot {
@@ -385,6 +441,7 @@
   border-radius: 50%;
   background: #34D399;
   display: inline-block;
+  flex-shrink: 0;
   animation: pulseDot 1s infinite;
 }
 
@@ -393,12 +450,20 @@
   50% { opacity: 1; }
 }
 
-/* Bottom Centered Pill Dock */
-.previewDockMini {
+/* 3. Dock Row (Auto Height, Padding .75rem) */
+.dockRow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding-top: 0.35rem;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(17, 17, 19, 0.6);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.dockLeftSpacer {
+  flex: 1;
 }
 
 .dockPill {
@@ -412,8 +477,8 @@
 }
 
 .dockIconBtn {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   background: #18181B;
   display: flex;
@@ -423,11 +488,31 @@
   border: none;
   cursor: default;
   transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .dockLeaveBtn {
   background: rgba(244, 63, 94, 0.18);
   color: #F43F5E;
+}
+
+.dockDirectBadge {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-family: 'Geist Mono', monospace;
+  color: #34D399;
+  white-space: nowrap;
+}
+
+.dockBadgeDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: #34D399;
 }
 
 /* ================= Row 3: Left Footer Trust Row ================= */
@@ -464,16 +549,30 @@
 .rightPanel {
   flex: 1;
   width: 50%;
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: #0F0F11;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: center;
-  padding: clamp(2rem, 3vw, 4rem);
+  padding: clamp(3.5rem, 7vh, 5rem) clamp(1.5rem, 3vw, 3rem) 1.5rem;
   box-sizing: border-box;
   position: relative;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.rightPanel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rightPanel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rightPanel::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
 }
 
 /* Faint Grid at 40% intensity, radially masked */
@@ -491,15 +590,37 @@
   z-index: 0;
 }
 
-/* Top-Right "Back to Home" Ghost Button */
+/* Top-Right "Back to Home" Ghost Button (Positioned at fixed top offset: clamp(1.5rem, 3.5vh, 2.5rem), height: 2.25rem) */
 .topRightNav {
-  width: 100%;
+  position: absolute;
+  top: clamp(1.5rem, 3.5vh, 2.5rem);
+  height: 2.25rem;
+  right: clamp(1.5rem, 3vw, 3rem);
+  left: clamp(1.5rem, 3vw, 3rem);
   display: flex;
-  justify-content: flex-end;
-  z-index: 2;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .topRightNav {
+    position: fixed;
+    left: auto;
+    width: auto;
+    justify-content: flex-end;
+  }
+}
+
+.topRightNav > * {
+  pointer-events: auto;
 }
 
 .backGhostLink {
+  margin-left: auto;
+  height: 2.25rem;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -536,7 +657,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 24px 48px -12px rgba(0, 0, 0, 0.7);
   box-sizing: border-box;
   position: relative;
-  margin: auto 0;
+  margin: 0;
   z-index: 2;
 }
 
@@ -553,6 +674,12 @@
   filter: blur(8rem);
   pointer-events: none;
   z-index: -1;
+}
+
+/* Tab body container */
+.tabContentWrapper {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Segmented Control Tabs (44px / 2.75rem high) */
@@ -638,11 +765,11 @@
   gap: 0.625rem;
 }
 
-/* Form Body */
+/* Form Body (Reduced gap by ~0.25rem for optimal vertical fit) */
 .formBody {
   display: flex;
   flex-direction: column;
-  gap: 1.125rem;
+  gap: 0.875rem;
 }
 
 .inputGroup {
@@ -679,7 +806,7 @@
   box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.3) !important;
 }
 
-.inputIcon {
+.inputIconWrapper {
   position: absolute;
   left: 0.875rem;
   color: #8B8B94;
@@ -702,13 +829,35 @@
   box-sizing: border-box;
 }
 
+.inputFieldConfirm {
+  padding: 0 4.75rem 0 2.875rem;
+}
+
 .inputField::placeholder {
-  color: #71717A;
+  color: var(--pm-text-subtle, #71717A);
+  opacity: 1;
+}
+
+/* Chrome/Safari Autofill styling so inputs never turn white or yellow */
+.inputField:-webkit-autofill,
+.inputField:-webkit-autofill:hover,
+.inputField:-webkit-autofill:focus,
+.inputField:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #18181B inset !important;
+  -webkit-text-fill-color: #EDEDEF !important;
+  caret-color: #EDEDEF !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.inputRightActions {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .passwordToggleBtn {
-  position: absolute;
-  right: 0.5rem;
   width: 2.25rem;
   height: 2.25rem;
   background: transparent;
@@ -720,6 +869,7 @@
   justify-content: center;
   border-radius: 0.375rem;
   transition: color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .passwordToggleBtn:hover {
@@ -732,6 +882,51 @@
   margin-top: 0.25rem;
 }
 
+.fieldErrorWithAction {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.fieldActionLink {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--pm-accent, #34D399);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: inherit;
+}
+
+.fieldActionLink:hover {
+  color: #2ECD8F;
+}
+
+.fieldHelperText {
+  color: #8B8B94;
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fieldHelperError {
+  color: #F43F5E;
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .capsLockWarning {
   color: #FBBF24;
   font-size: 0.875rem;
@@ -742,9 +937,60 @@
   gap: 0.25rem;
 }
 
-/* Password Strength Meter */
-.strengthMeterContainer {
-  margin-top: 0.5rem;
+/* Password Rules Checklist (Item 3: Compact chips in one row) */
+.passwordChecklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.5rem;
+}
+
+.rulesChipsRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  transition: color 0.2s ease;
+}
+
+.checklistMet {
+  color: var(--pm-accent, #34D399);
+}
+
+.checklistUnmet {
+  color: #71717A;
+}
+
+.ruleIcon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.confirmMatchIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  color: var(--pm-accent, #34D399);
+}
+
+/* Password Strength Meter in One Row (Item 3) */
+.strengthMeterRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 .strengthSegments {
@@ -752,7 +998,7 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 0.375rem;
   height: 0.25rem;
-  margin-bottom: 0.375rem;
+  flex: 1;
 }
 
 .strengthBar {
@@ -779,27 +1025,12 @@
 }
 
 .strengthLabel {
-  font-size: 0.75rem;
-  color: #8B8B94;
-}
-
-/* Terms Agreement Notice (Create Account Only) */
-.termsNotice {
   font-size: 0.8125rem;
   color: #8B8B94;
-  text-align: center;
-  margin: 0.25rem 0 0 0;
-  line-height: 1.4;
+  white-space: nowrap;
 }
 
-.termsLink {
-  color: #D4D4D8;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-/* Primary Button (3.25rem, Inset Top Highlight, Hover Glow, Active Scale) */
+/* Primary Button (3.25rem) */
 .primarySubmitBtn {
   height: 3.25rem;
   width: 100%;
@@ -835,7 +1066,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 1.125rem 0;
+  margin: 1.25rem 0;
   color: #8B8B94;
   font-size: 0.8125rem;
   text-transform: uppercase;
@@ -874,36 +1105,153 @@
   color: #FFFFFF;
 }
 
-/* Panel Footer (Centered at bottom) */
+/* Alert Success Banner */
+.alertSuccess {
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  color: #34D399;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.625rem;
+  font-size: 0.875rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* Panel Footer (Clean flow below card with margin-top: auto and padding-bottom: 1.5rem per Item L) */
 .panelFooter {
   width: 100%;
   font-size: 0.8125rem;
   color: #8B8B94;
   text-align: center;
   z-index: 2;
-  padding-top: 1rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  box-sizing: border-box;
+}
+
+/* ================= Explicit Icon Size Classes (No !important needed) ================= */
+.logoMarkIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.inputIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.eyeToggleIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.trustRowIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.topBarIcon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.dockIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.satelliteChipIcon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.tileMicOffIcon {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  flex-shrink: 0;
+  color: #A1A1AA;
+}
+
+.backGhostIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.guestSecondaryIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.loaderIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.signalIcon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 /* ================= Viewport Height & Width Breakpoints ================= */
-/* If Viewport Height < 860px: Switch 2x2 to 1x2, hide tiles 3 & 4, compact avatars */
+/* If Viewport Height < 860px: Switch 2x2 to 1x2, compact avatars */
 @media (max-height: 859px) {
-  .tilesGrid {
-    grid-template-rows: 1fr;
-  }
-  .tileHiddenShort {
-    display: none !important;
-  }
-  .avatarCircle {
-    width: 3rem;
-    height: 3rem;
-    font-size: 1.25rem;
+  .stage {
+    grid-template-rows: minmax(0, 1fr) !important;
   }
 }
 
-/* Hide Satellite Chips Below 1280px Width to Prevent Any Overlap */
-@media (max-width: 1279px) {
+/* If Viewport Height <= 820px: Left Panel Anti-Clipping (Item 2) */
+@media (max-height: 820px) {
+  .leftMiddleContent {
+    padding: 1rem 0 !important;
+  }
+  .headline {
+    font-size: clamp(2rem, 4.2vh, 2.75rem) !important;
+    margin-bottom: 0.5rem !important;
+  }
+  .subtext {
+    margin-bottom: 1rem !important;
+    font-size: 0.9375rem !important;
+  }
+  .previewCard {
+    height: clamp(16rem, 38vh, 22rem) !important;
+  }
   .satelliteChipA,
   .satelliteChipB {
+    display: none !important;
+  }
+  .leftTrustRow {
+    padding-top: 0.75rem !important;
+  }
+}
+
+/* Hide Satellite Chip B below 1440px width */
+@media (max-width: 1439px) {
+  .satelliteChipB {
+    display: none !important;
+  }
+}
+
+/* Hide Satellite Chip A and .dockDirectBadge below 1280px width */
+@media (max-width: 1279px) {
+  .satelliteChipA {
+    display: none !important;
+  }
+  .dockDirectBadge {
     display: none !important;
   }
 }
@@ -915,19 +1263,32 @@
   }
   .rightPanel {
     width: 100%;
-    padding: 2rem 1.5rem;
+    padding: clamp(4.5rem, 9vh, 6rem) 1.5rem 2rem;
   }
   .topRightNav {
+    position: absolute;
+    top: 1.25rem;
+    left: 1.5rem;
+    right: 1.5rem;
+    display: flex;
     justify-content: space-between;
   }
   .mobileBrandHeader {
     display: flex;
   }
+  .backGhostLink {
+    margin-left: 0;
+  }
 }
 
 @media (max-width: 500px) {
   .rightPanel {
-    padding: 1.5rem 1rem;
+    padding: 4.5rem 1rem 2rem;
+  }
+  .topRightNav {
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
   }
   .formCard {
     padding: 1.75rem 1.25rem;

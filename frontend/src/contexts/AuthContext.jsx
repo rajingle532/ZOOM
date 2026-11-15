@@ -29,18 +29,22 @@ export const AuthProvider = ({ children }) => {
     });
     const router = useNavigate();
 
-    const handleRegister = async (name, username, password) => {
+    const handleRegister = async (name, username, password, email) => {
         try {
             const response = await client.post("/register", {
                 name,
                 username,
-                password
+                password,
+                ...(email !== undefined && { email })
             });
 
             if (response.status === httpStatus.CREATED) {
                 return response.data.message;
             }
         } catch (err) {
+            if (!err.response) {
+                err.isNetworkError = true;
+            }
             throw err;
         }
     };
@@ -61,6 +65,9 @@ export const AuthProvider = ({ children }) => {
                 router("/home");
             }
         } catch (err) {
+            if (!err.response) {
+                err.isNetworkError = true;
+            }
             throw err;
         }
     };

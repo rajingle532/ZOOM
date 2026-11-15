@@ -203,7 +203,7 @@
 .joinInputGroup {
     display: flex;
     gap: 10px;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .joinBtn {
@@ -212,7 +212,8 @@
     font-weight: 700 !important;
     text-transform: none !important;
     border-radius: 10px !important;
-    padding: 10px 22px !important;
+    padding: 0 22px !important;
+    height: 40px !important;
     box-shadow: 0 4px 14px rgba(0, 212, 170, 0.3) !important;
     white-space: nowrap !important;
 }

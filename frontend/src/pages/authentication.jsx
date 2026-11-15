@@ -1,103 +1,123 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
     Lock,
     Zap,
     HardDrive,
     Video,
     User,
+    Mail,
     KeyRound,
     Eye,
     EyeOff,
     ArrowLeft,
     Loader2,
-    Mic,
-    MicOff,
-    Users,
-    SignalHigh,
-    Disc,
-    Hand,
-    MessageSquare,
-    PhoneOff,
-    ScreenShare
+    Check,
+    Circle
 } from 'lucide-react';
-import Snackbar from '@mui/material/Snackbar';
 import { AuthContext } from '../contexts/AuthContext';
+import HeroPreview from '../components/auth/HeroPreview';
+import { generateRoomCode } from '../utils/roomCode';
 import styles from '../styles/auth.module.css';
 
 export default function Authentication() {
-    const [username, setUsername] = useState("");
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [registerUsername, setRegisterUsername] = useState("");
+    const [loginIdentifier, setLoginIdentifier] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [name, setName] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+    const [confirmBlurred, setConfirmBlurred] = useState(false);
     const [capsLockActive, setCapsLockActive] = useState(false);
     const [error, setError] = useState("");
+    const [successNotice, setSuccessNotice] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
-    const [message, setMessage] = useState("");
     const [formState, setFormState] = useState(0); // 0 = Sign In, 1 = Sign Up
-    const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [shake, setShake] = useState(false);
 
-    // Live preview states: REC elapsed timer & dynamic speaker rotation
-    const [recSeconds, setRecSeconds] = useState(1122); // Start at 00:18:42
-    const [activeSpeakerIndex, setActiveSpeakerIndex] = useState(0);
-    const [isShortViewport, setIsShortViewport] = useState(false);
-
+    const shouldReduceMotion = useReducedMotion();
     const { handleRegister, handleLogin } = useContext(AuthContext);
     const navigate = useNavigate();
 
-    // Viewport height listener for < 860px (1x2 tiles optimization)
-    useEffect(() => {
-        const checkHeight = () => {
-            if (typeof window !== 'undefined') {
-                setIsShortViewport(window.innerHeight < 860);
-            }
-        };
-        checkHeight();
-        window.addEventListener('resize', checkHeight);
-        return () => window.removeEventListener('resize', checkHeight);
-    }, []);
+    // Item 1: Unified switchTab that completely resets state across tabs
+    const switchTab = (next, { prefill } = {}) => {
+        setFormState(next);
+        setName("");
+        setEmail("");
+        setRegisterUsername("");
+        setLoginIdentifier("");
+        setPassword("");
+        setConfirmPassword("");
+        setShowPassword(false);
+        setShowConfirmPassword(false);
+        setIsPasswordFocused(false);
+        setConfirmBlurred(false);
+        setCapsLockActive(false);
+        setFieldErrors({});
+        setError("");
+        setSuccessNotice("");
 
-    // Live ticking REC timer
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setRecSeconds(prev => prev + 1);
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
+        if (prefill?.identifier && next === 0) {
+            setLoginIdentifier(prefill.identifier);
+        }
 
-    // Rotate active speaker every 4 seconds (rotates among visible tiles)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveSpeakerIndex(prev => (prev + 1) % (isShortViewport ? 2 : 4));
-        }, 4000);
-        return () => clearInterval(interval);
-    }, [isShortViewport]);
-
-    // Format seconds into HH:MM:SS
-    const formatRecTime = (totalSec) => {
-        const hrs = Math.floor(totalSec / 3600);
-        const mins = Math.floor((totalSec % 3600) / 60);
-        const secs = totalSec % 60;
-        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        // Item 6: Autofocus first field on tab switch only when window >= 1024px
+        if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(min-width: 1024px)").matches) {
+            setTimeout(() => {
+                if (next === 0) {
+                    document.getElementById("identifier-input")?.focus();
+                } else {
+                    document.getElementById("name-input")?.focus();
+                }
+            }, 50);
+        }
     };
 
-    // Password strength evaluation (4 segments)
+    // Item 6: Autofocus first field on initial mount only when >= 1024px
+    useEffect(() => {
+        if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(min-width: 1024px)").matches) {
+            document.getElementById("identifier-input")?.focus();
+        }
+    }, []);
+
+    // Password rules checklist calculations
+    const ruleMinLength = password.length >= 8;
+    const ruleHasLetter = /[a-zA-Z]/.test(password);
+    const ruleHasNumber = /[0-9]/.test(password);
+    const allThreeRulesMet = ruleMinLength && ruleHasLetter && ruleHasNumber;
+
+    // Password strength evaluation
     const getPasswordStrength = (pass) => {
-        if (!pass) return { score: 0, label: "" };
-        let score = 0;
-        if (pass.length >= 6) score++;
-        if (pass.length >= 8) score++;
-        if (/[A-Z]/.test(pass) && /[0-9]/.test(pass)) score++;
-        if (/[^A-Za-z0-9]/.test(pass)) score++;
-        const labels = ["Weak", "Fair", "Good", "Strong"];
-        return { score, label: labels[Math.max(0, score - 1)] || "Weak" };
+        if (!pass) return { score: 0, label: "none" };
+        if (!allThreeRulesMet) {
+            return { score: 1, label: "weak" };
+        }
+        const hasSymbolOrMixedCase = /[^a-zA-Z0-9]/.test(pass) || (/[a-z]/.test(pass) && /[A-Z]/.test(pass));
+        if (pass.length >= 12 && hasSymbolOrMixedCase) {
+            return { score: 4, label: "strong" };
+        }
+        if (pass.length >= 10) {
+            return { score: 3, label: "good" };
+        }
+        return { score: 2, label: "fair" };
     };
 
     const strength = getPasswordStrength(password);
+    const showPasswordRules = formState === 1 && (isPasswordFocused || password.length > 0);
+
+    // Confirm password matching calculations
+    const isConfirmMatch = confirmPassword.length > 0 && password.length > 0 && confirmPassword === password;
+    const isConfirmMismatch = (confirmBlurred && confirmPassword.length > 0 && confirmPassword !== password) ||
+        (confirmPassword.length >= password.length && password.length > 0 && confirmPassword !== password);
+
+    // Username helper text
+    const hasUppercase = /[A-Z]/.test(registerUsername);
+    const usernameHelperText = `3-24 letters, numbers or underscore.${hasUppercase ? " Saved in lowercase." : ""}`;
 
     const triggerShake = () => {
         setShake(true);
@@ -107,11 +127,13 @@ export default function Authentication() {
     const handleAuth = async (e) => {
         if (e) e.preventDefault();
         setError("");
+        setSuccessNotice("");
         setFieldErrors({});
 
         if (formState === 0) {
+            // Sign in tab validation
             const errors = {};
-            if (!username.trim()) errors.username = "Username is required";
+            if (!loginIdentifier.trim()) errors.username = "Email or username is required";
             if (!password) errors.password = "Password is required";
 
             if (Object.keys(errors).length > 0) {
@@ -122,22 +144,70 @@ export default function Authentication() {
 
             setIsLoading(true);
             try {
-                await handleLogin(username.trim(), password);
+                await handleLogin(loginIdentifier.trim(), password);
             } catch (err) {
-                console.error("Auth error:", err);
-                const errMsg = err?.response?.data?.message || "Invalid username or password";
-                setError(errMsg);
+                console.error("Login error:", err);
                 triggerShake();
+                if (err?.response?.status === 429) {
+                    setError("Too many attempts. Try again in a few minutes.");
+                } else if (err?.isNetworkError) {
+                    setError("Cannot reach the server. Check your connection.");
+                } else if (err?.response?.data?.errors && Object.keys(err.response.data.errors).length > 0) {
+                    setFieldErrors(err.response.data.errors);
+                    setError("");
+                } else {
+                    let msg = err?.response?.data?.message || "Invalid credentials";
+                    // Item 7: Login 401 copy
+                    if (err?.response?.status === 401 && msg === "Invalid username or password") {
+                        msg = "Incorrect email/username or password";
+                    }
+                    setError(msg);
+                }
             } finally {
                 setIsLoading(false);
             }
         } else {
+            // Create account validation
             const errors = {};
-            if (!name.trim()) errors.name = "Full name is required";
-            if (!username.trim()) errors.username = "Username is required";
-            if (!password) errors.password = "Password is required";
-            else if (password.length < 6) errors.password = "Password must be at least 6 characters";
-            if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match";
+            if (!name.trim()) {
+                errors.name = "Full name is required";
+            } else if (name.trim().length > 50) {
+                errors.name = "Full name must be 50 characters or less";
+            }
+
+            const emailTrimmed = email.trim().toLowerCase();
+            if (!emailTrimmed) {
+                errors.email = "Email is required";
+            } else if (emailTrimmed.length > 254) {
+                errors.email = "Email must be 254 characters or less";
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+                errors.email = "Please enter a valid email address";
+            }
+
+            const usernameTrimmed = registerUsername.trim().toLowerCase();
+            if (!usernameTrimmed) {
+                errors.username = "Username is required";
+            } else if (usernameTrimmed.length < 3 || usernameTrimmed.length > 24) {
+                errors.username = "Username must be 3-24 characters";
+            } else if (!/^[a-zA-Z0-9_]+$/.test(usernameTrimmed)) {
+                errors.username = "3-24 letters, numbers or underscore.";
+            }
+
+            if (!password) {
+                errors.password = "Password is required";
+            } else if (password.length < 8 || password.length > 72) {
+                errors.password = "Password must be 8-72 characters";
+            } else if (!/[a-zA-Z]/.test(password)) {
+                errors.password = "Password must contain at least one letter";
+            } else if (!/[0-9]/.test(password)) {
+                errors.password = "Password must contain at least one number";
+            }
+
+            if (!confirmPassword) {
+                errors.confirmPassword = "Please confirm your password";
+            } else if (password !== confirmPassword) {
+                errors.confirmPassword = "Passwords do not match";
+            }
 
             if (Object.keys(errors).length > 0) {
                 setFieldErrors(errors);
@@ -147,19 +217,43 @@ export default function Authentication() {
 
             setIsLoading(true);
             try {
-                let result = await handleRegister(name.trim(), username.trim(), password);
-                setUsername("");
+                await handleRegister(name.trim(), usernameTrimmed, password, emailTrimmed);
+                const registeredEmail = emailTrimmed;
+                const registeredPassword = password;
+
                 setPassword("");
                 setConfirmPassword("");
                 setName("");
-                setMessage(result || "Account created successfully! You can now sign in.");
-                setOpen(true);
-                setFormState(0);
+
+                try {
+                    // Auto-login with EMAIL + password
+                    await handleLogin(registeredEmail, registeredPassword);
+                } catch (loginErr) {
+                    console.error("Auto-login error after registration:", loginErr);
+                    switchTab(0, { prefill: { identifier: registeredEmail } });
+                    setSuccessNotice("Account created. Please sign in.");
+                }
             } catch (err) {
-                console.error("Auth error:", err);
-                const errMsg = err?.response?.data?.message || "Registration failed. Please try a different username.";
-                setError(errMsg);
+                console.error("Registration error:", err);
                 triggerShake();
+                if (err?.response?.status === 429) {
+                    setError("Too many attempts. Try again in a few minutes.");
+                } else if (err?.isNetworkError) {
+                    setError("Cannot reach the server. Check your connection.");
+                } else if (err?.response?.data?.errors && Object.keys(err.response.data.errors).length > 0) {
+                    // Item 4: Map ONLY server response keys to fields. No regex inference
+                    const srvErrors = err.response.data.errors;
+                    const mappedErrors = {};
+                    for (const [key, val] of Object.entries(srvErrors)) {
+                        mappedErrors[key] = val;
+                    }
+                    setFieldErrors(mappedErrors);
+                    setError("");
+                } else {
+                    // Item 4: If no errors object, show data.message in alert box
+                    setError(err?.response?.data?.message || "Something went wrong.");
+                    setFieldErrors({});
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -167,7 +261,7 @@ export default function Authentication() {
     };
 
     const handleGuestJoin = () => {
-        const randomRoom = Math.random().toString(36).substring(2, 8);
+        const randomRoom = generateRoomCode();
         navigate(`/${randomRoom}`);
     };
 
@@ -192,18 +286,6 @@ export default function Authentication() {
         }
     };
 
-    const chipVariants = {
-        hidden: { opacity: 0, scale: 0.9 },
-        visible: {
-            opacity: 1,
-            scale: 1,
-            transition: { duration: 0.4, delay: 0.4, ease: "easeOut" }
-        }
-    };
-
-    // 5 Animated waveform bar relative heights
-    const waveformScales = [0.4, 0.9, 0.6, 1.0, 0.5];
-
     return (
         <div className={styles.authContainer}>
             {/* ================= LEFT PANEL (50/50 Desktop Split, Grid Rows: auto 1fr auto) ================= */}
@@ -212,17 +294,17 @@ export default function Authentication() {
                 <div className={styles.emeraldGlowBottom} />
                 <div className={styles.noiseOverlay} />
 
-                {/* Row 1: Logo Only (32px padding from edges) */}
+                {/* Row 1: Logo Only (Height: 2.25rem for shared alignment with Back to Home) */}
                 <div className={styles.leftHeader}>
                     <div className={styles.brandLink} onClick={() => navigate('/')}>
                         <div className={styles.brandIcon}>
-                            <Video size={20} strokeWidth={1.75} />
+                            <Video strokeWidth={1.75} className={styles.logoMarkIcon} />
                         </div>
                         <span className={styles.brandTitle}>PulseMeet</span>
                     </div>
                 </div>
 
-                {/* Row 2: Headline, Subtext, Hero Preview (Vertically Centered with >= 4rem gap) */}
+                {/* Row 2: Headline, Subtext, Hero Preview */}
                 <motion.div
                     className={styles.leftMiddleContent}
                     variants={leftContainerVariants}
@@ -230,229 +312,33 @@ export default function Authentication() {
                     animate="visible"
                 >
                     <motion.h1 className={styles.headline} variants={leftItemVariants}>
-                        Video meetings, <span className={styles.emeraldText}>straight between browsers.</span>
+                        Video meetings, straight between <span className={styles.emeraldText}>browsers.</span>
                     </motion.h1>
 
                     <motion.p className={styles.subtext} variants={leftItemVariants}>
                         Audio and video go directly between participants. Our server only helps them find each other.
                     </motion.p>
 
-                    {/* Large Product Preview Window & Floating Satellite Chips */}
-                    <motion.div className={styles.previewHeroWrapper} variants={leftItemVariants}>
-                        {/* Satellite Chip A (Top-Right, Outside Card) */}
-                        <motion.div
-                            className={styles.satelliteChipA}
-                            variants={chipVariants}
-                            animate={{ y: [0, -6, 0] }}
-                            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0 }}
-                        >
-                            <Zap size={16} strokeWidth={1.75} className="text-[#34D399]" />
-                            <span>Direct connection</span>
-                        </motion.div>
-
-                        {/* Satellite Chip B (Bottom-Left, Outside Card) */}
-                        <motion.div
-                            className={styles.satelliteChipB}
-                            variants={chipVariants}
-                            animate={{ y: [0, -6, 0] }}
-                            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                        >
-                            <HardDrive size={16} strokeWidth={1.75} className="text-[#34D399]" />
-                            <span>Recording saves to your disk</span>
-                        </motion.div>
-
-                        {/* The Hero Preview Window Card */}
-                        <div className={styles.previewWindowCard}>
-                            {/* Window Top Bar */}
-                            <div className={styles.windowBar}>
-                                <div className={styles.windowUrl}>
-                                    <Lock size={18} strokeWidth={1.75} className="text-[#34D399]" />
-                                    <span>alpha-9x</span>
-                                </div>
-                                <div className={styles.windowMetaRight}>
-                                    <div className={styles.recIndicator}>
-                                        <div className={styles.recPulseDot} />
-                                        <span>REC {formatRecTime(recSeconds)}</span>
-                                    </div>
-                                    <div className={styles.participantCount}>
-                                        <Users size={18} strokeWidth={1.75} />
-                                        <span>4</span>
-                                    </div>
-                                    <SignalHigh size={18} strokeWidth={1.75} className="text-[#34D399]" />
-                                </div>
-                            </div>
-
-                            {/* 2x2 Grid of 16:9 Tiles (Switches to 1x2 when height < 860px) */}
-                            <div className={styles.tilesGrid}>
-                                {/* Tile 1: Host Raj (Emerald Tint) */}
-                                <div className={`${styles.videoTile} ${activeSpeakerIndex === 0 ? styles.speakingTile : ''}`}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarEmerald}`}>
-                                        R
-                                    </div>
-                                    {activeSpeakerIndex === 0 ? (
-                                        <div className={styles.speakingWaveContainer}>
-                                            {waveformScales.map((scale, i) => (
-                                                <motion.div
-                                                    key={i}
-                                                    className={styles.activeWaveBar}
-                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
-                                                    transition={{
-                                                        duration: 0.6,
-                                                        repeat: Infinity,
-                                                        ease: "easeInOut",
-                                                        delay: i * 0.1
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className={styles.speakingWavePlaceholder} />
-                                    )}
-                                    <div className={styles.tileNameChip}>
-                                        <span>Raj (Host)</span>
-                                        {activeSpeakerIndex === 0 && <span className={styles.speakingPulseDot} />}
-                                    </div>
-                                </div>
-
-                                {/* Tile 2: Sarah Miller (Sky Tint) */}
-                                <div className={`${styles.videoTile} ${activeSpeakerIndex === 1 ? styles.speakingTile : ''}`}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarSky}`}>
-                                        S
-                                    </div>
-                                    {activeSpeakerIndex === 1 ? (
-                                        <div className={styles.speakingWaveContainer}>
-                                            {waveformScales.map((scale, i) => (
-                                                <motion.div
-                                                    key={i}
-                                                    className={styles.activeWaveBar}
-                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
-                                                    transition={{
-                                                        duration: 0.6,
-                                                        repeat: Infinity,
-                                                        ease: "easeInOut",
-                                                        delay: i * 0.1
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className={styles.speakingWavePlaceholder} />
-                                    )}
-                                    <div className={styles.tileNameChip}>
-                                        <span>Sarah Miller</span>
-                                        {activeSpeakerIndex === 1 ? (
-                                            <span className={styles.speakingPulseDot} />
-                                        ) : (
-                                            <MicOff size={13} strokeWidth={1.75} className="text-[#A1A1AA]" />
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Tile 3: Alex Rivera (Amber Tint, Hidden on Short Viewports) */}
-                                <div className={`${styles.videoTile} ${styles.tileHiddenShort} ${activeSpeakerIndex === 2 ? styles.speakingTile : ''}`}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarAmber}`}>
-                                        A
-                                    </div>
-                                    {activeSpeakerIndex === 2 ? (
-                                        <div className={styles.speakingWaveContainer}>
-                                            {waveformScales.map((scale, i) => (
-                                                <motion.div
-                                                    key={i}
-                                                    className={styles.activeWaveBar}
-                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
-                                                    transition={{
-                                                        duration: 0.6,
-                                                        repeat: Infinity,
-                                                        ease: "easeInOut",
-                                                        delay: i * 0.1
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className={styles.speakingWavePlaceholder} />
-                                    )}
-                                    <div className={styles.tileNameChip}>
-                                        <span>Alex Rivera</span>
-                                        {activeSpeakerIndex === 2 && <span className={styles.speakingPulseDot} />}
-                                    </div>
-                                </div>
-
-                                {/* Tile 4: Elena Rostova (Rose Tint, Hidden on Short Viewports) */}
-                                <div className={`${styles.videoTile} ${styles.tileHiddenShort} ${activeSpeakerIndex === 3 ? styles.speakingTile : ''}`}>
-                                    <div className={`${styles.avatarCircle} ${styles.avatarRose}`}>
-                                        E
-                                    </div>
-                                    {activeSpeakerIndex === 3 ? (
-                                        <div className={styles.speakingWaveContainer}>
-                                            {waveformScales.map((scale, i) => (
-                                                <motion.div
-                                                    key={i}
-                                                    className={styles.activeWaveBar}
-                                                    animate={{ scaleY: [0.25, scale, 0.25] }}
-                                                    transition={{
-                                                        duration: 0.6,
-                                                        repeat: Infinity,
-                                                        ease: "easeInOut",
-                                                        delay: i * 0.1
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className={styles.speakingWavePlaceholder} />
-                                    )}
-                                    <div className={styles.tileNameChip}>
-                                        <span>Elena Rostova</span>
-                                        {activeSpeakerIndex === 3 && <span className={styles.speakingPulseDot} />}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Window Bottom Centered Pill Dock */}
-                            <div className={styles.previewDockMini}>
-                                <div className={styles.dockPill}>
-                                    <div className={styles.dockIconBtn} title="Mic">
-                                        <Mic size={18} strokeWidth={1.75} className="text-[#34D399]" />
-                                    </div>
-                                    <div className={styles.dockIconBtn} title="Camera">
-                                        <Video size={18} strokeWidth={1.75} />
-                                    </div>
-                                    <div className={styles.dockIconBtn} title="Share screen">
-                                        <ScreenShare size={18} strokeWidth={1.75} />
-                                    </div>
-                                    <div className={styles.dockIconBtn} title="Record">
-                                        <Disc size={18} strokeWidth={1.75} className="text-[#F43F5E]" />
-                                    </div>
-                                    <div className={styles.dockIconBtn} title="Raise hand">
-                                        <Hand size={18} strokeWidth={1.75} />
-                                    </div>
-                                    <div className={styles.dockIconBtn} title="Chat">
-                                        <MessageSquare size={18} strokeWidth={1.75} />
-                                    </div>
-                                    <div className={`${styles.dockIconBtn} ${styles.dockLeaveBtn}`} title="Leave">
-                                        <PhoneOff size={18} strokeWidth={1.75} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Hero Preview Window Card & Floating Satellite Chips */}
+                    <motion.div variants={leftItemVariants}>
+                        <HeroPreview />
                     </motion.div>
                 </motion.div>
 
                 {/* Row 3: Left Footer Trust Row */}
                 <div className={styles.leftTrustRow}>
                     <div className={styles.trustItem}>
-                        <Lock size={18} strokeWidth={1.75} className="text-[#34D399]" />
+                        <Lock strokeWidth={1.75} className={`${styles.trustRowIcon} ${styles.iconAccent}`} />
                         <span>Peer-to-peer</span>
                     </div>
                     <div className={styles.trustDivider} />
                     <div className={styles.trustItem}>
-                        <Zap size={18} strokeWidth={1.75} className="text-[#34D399]" />
+                        <Zap strokeWidth={1.75} className={`${styles.trustRowIcon} ${styles.iconAccent}`} />
                         <span>Low latency</span>
                     </div>
                     <div className={styles.trustDivider} />
                     <div className={styles.trustItem}>
-                        <HardDrive size={18} strokeWidth={1.75} className="text-[#34D399]" />
+                        <HardDrive strokeWidth={1.75} className={`${styles.trustRowIcon} ${styles.iconAccent}`} />
                         <span>Local recording</span>
                     </div>
                 </div>
@@ -464,22 +350,26 @@ export default function Authentication() {
                 <div className={styles.topRightNav}>
                     <div className={styles.mobileBrandHeader}>
                         <div className={styles.brandIcon}>
-                            <Video size={20} strokeWidth={1.75} />
+                            <Video strokeWidth={1.75} className={styles.logoMarkIcon} />
                         </div>
                         <span className={styles.brandTitle}>PulseMeet</span>
                     </div>
 
                     <div className={styles.backGhostLink} onClick={() => navigate('/')}>
-                        <ArrowLeft size={18} strokeWidth={1.75} />
+                        <ArrowLeft strokeWidth={1.75} className={styles.backGhostIcon} />
                         <span>Back to home</span>
                     </div>
                 </div>
 
-                {/* Centered Form Card (30rem wide, Shake on Error) */}
+                {/* Centered Form Card (30rem wide, Shake on Error, Smooth Layout Animation) */}
                 <motion.div
                     className={styles.formCard}
+                    layout
                     animate={shake ? { x: [0, -8, 8, -4, 4, 0] } : { x: 0 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    transition={{
+                        layout: { duration: shouldReduceMotion ? 0 : 0.25, ease: "easeOut" },
+                        x: { duration: 0.4, ease: "easeInOut" }
+                    }}
                 >
                     <div className={styles.formCardGlow} />
 
@@ -495,7 +385,7 @@ export default function Authentication() {
                             role="tab"
                             aria-selected={formState === 0}
                             className={`${styles.tabSegment} ${formState === 0 ? styles.tabSegmentActive : ''}`}
-                            onClick={() => { setFormState(0); setError(""); setFieldErrors({}); }}
+                            onClick={() => switchTab(0)}
                         >
                             Sign in
                         </button>
@@ -504,7 +394,7 @@ export default function Authentication() {
                             role="tab"
                             aria-selected={formState === 1}
                             className={`${styles.tabSegment} ${formState === 1 ? styles.tabSegmentActive : ''}`}
-                            onClick={() => { setFormState(1); setError(""); setFieldErrors({}); }}
+                            onClick={() => switchTab(1)}
                         >
                             Create account
                         </button>
@@ -522,230 +412,473 @@ export default function Authentication() {
                         </p>
                     </div>
 
-                    {/* Server Error Alert Banner */}
-                    {error && (
-                        <div className={styles.alertError} role="alert" aria-live="polite">
-                            <span>{error}</span>
-                        </div>
-                    )}
+                    {/* Success Notice Banner (Animated Height + Opacity) */}
+                    <AnimatePresence>
+                        {successNotice && (
+                            <motion.div
+                                key="success-notice"
+                                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                style={{ overflow: "hidden" }}
+                                className={styles.alertSuccess}
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <span>{successNotice}</span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    {/* Form Body with Crossfade Transition */}
-                    <AnimatePresence mode="wait">
-                        <motion.form
-                            key={formState}
-                            onSubmit={handleAuth}
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.2 }}
-                            className={styles.formBody}
-                            noValidate
-                        >
-                            {/* Full Name Input (Create Account Only) */}
-                            {formState === 1 && (
-                                <div className={styles.inputGroup}>
-                                    <label htmlFor="name-input" className={styles.inputLabel}>
-                                        Full name
-                                    </label>
-                                    <div className={`${styles.inputWrapper} ${fieldErrors.name ? styles.inputWrapperError : ''}`}>
-                                        <div className={styles.inputIcon}>
-                                            <User size={18} strokeWidth={1.75} />
+                    {/* Server Error Alert Banner (Animated Height + Opacity) */}
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div
+                                key="error-alert"
+                                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                style={{ overflow: "hidden" }}
+                                className={styles.alertError}
+                                role="alert"
+                                aria-live="polite"
+                            >
+                                <span>{error}</span>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Tab Body Wrapper with 0.2s Crossfade */}
+                    <div className={styles.tabContentWrapper}>
+                        <AnimatePresence mode="wait">
+                            <motion.form
+                                key={formState}
+                                onSubmit={handleAuth}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className={styles.formBody}
+                                noValidate
+                            >
+                                {/* 1. Full Name Input (Create Account Only) */}
+                                {formState === 1 && (
+                                    <div className={styles.inputGroup}>
+                                        <label htmlFor="name-input" className={styles.inputLabel}>
+                                            Full name
+                                        </label>
+                                        <div className={`${styles.inputWrapper} ${fieldErrors.name ? styles.inputWrapperError : ''}`}>
+                                            <div className={styles.inputIconWrapper}>
+                                                <User strokeWidth={1.75} className={styles.inputIcon} />
+                                            </div>
+                                            <input
+                                                id="name-input"
+                                                name="name"
+                                                type="text"
+                                                autoComplete="name"
+                                                value={name}
+                                                onChange={(e) => {
+                                                    setName(e.target.value);
+                                                    if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: null }));
+                                                }}
+                                                placeholder="Your full name"
+                                                className={styles.inputField}
+                                                aria-invalid={!!fieldErrors.name}
+                                                aria-describedby={fieldErrors.name ? "name-error" : undefined}
+                                            />
                                         </div>
-                                        <input
-                                            id="name-input"
-                                            name="name"
-                                            type="text"
-                                            autoComplete="name"
-                                            autoFocus
-                                            value={name}
-                                            onChange={(e) => {
-                                                setName(e.target.value);
-                                                if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: null }));
-                                            }}
-                                            placeholder="Raj Ingle"
-                                            className={styles.inputField}
-                                        />
+                                        <AnimatePresence>
+                                            {fieldErrors.name && (
+                                                <motion.div
+                                                    key="name-error"
+                                                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: "auto" }}
+                                                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                    transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                    style={{ overflow: "hidden" }}
+                                                >
+                                                    <span id="name-error" className={styles.fieldErrorText} role="alert">
+                                                        {fieldErrors.name}
+                                                    </span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
-                                    {fieldErrors.name && (
-                                        <span className={styles.fieldErrorText}>{fieldErrors.name}</span>
+                                )}
+
+                                {/* 2. Email Input (Create Account Only) */}
+                                {formState === 1 && (
+                                    <div className={styles.inputGroup}>
+                                        <label htmlFor="email-input" className={styles.inputLabel}>
+                                            Email
+                                        </label>
+                                        <div className={`${styles.inputWrapper} ${fieldErrors.email ? styles.inputWrapperError : ''}`}>
+                                            <div className={styles.inputIconWrapper}>
+                                                <Mail strokeWidth={1.75} className={styles.inputIcon} />
+                                            </div>
+                                            <input
+                                                id="email-input"
+                                                name="email"
+                                                type="email"
+                                                autoComplete="email"
+                                                value={email}
+                                                onChange={(e) => {
+                                                    setEmail(e.target.value);
+                                                    if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: null }));
+                                                }}
+                                                placeholder="you@example.com"
+                                                className={styles.inputField}
+                                                aria-invalid={!!fieldErrors.email}
+                                                aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                                            />
+                                        </div>
+                                        <AnimatePresence>
+                                            {fieldErrors.email && (
+                                                <motion.div
+                                                    key="email-error"
+                                                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: "auto" }}
+                                                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                    transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                    style={{ overflow: "hidden" }}
+                                                    className={styles.fieldErrorWithAction}
+                                                >
+                                                    <span id="email-error" className={styles.fieldErrorText} role="alert">
+                                                        {fieldErrors.email}
+                                                    </span>
+                                                    {/already registered/i.test(fieldErrors.email) && (
+                                                        <button
+                                                            type="button"
+                                                            className={styles.fieldActionLink}
+                                                            onClick={() => switchTab(0, { prefill: { identifier: email.trim().toLowerCase() } })}
+                                                        >
+                                                            Sign in instead
+                                                        </button>
+                                                    )}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+
+                                {/* 3. Username / Email or username Input (Separated States) */}
+                                <div className={styles.inputGroup}>
+                                    <label htmlFor={formState === 0 ? "identifier-input" : "username-input"} className={styles.inputLabel}>
+                                        {formState === 0 ? "Email or username" : "Username"}
+                                    </label>
+                                    <div className={`${styles.inputWrapper} ${(fieldErrors.username || fieldErrors.identifier) ? styles.inputWrapperError : ''}`}>
+                                        <div className={styles.inputIconWrapper}>
+                                            <User strokeWidth={1.75} className={styles.inputIcon} />
+                                        </div>
+                                        {formState === 0 ? (
+                                            <input
+                                                id="identifier-input"
+                                                name="identifier"
+                                                type="text"
+                                                autoComplete="username"
+                                                value={loginIdentifier}
+                                                onChange={(e) => {
+                                                    setLoginIdentifier(e.target.value);
+                                                    if (fieldErrors.username || fieldErrors.identifier) setFieldErrors(prev => ({ ...prev, username: null, identifier: null }));
+                                                }}
+                                                placeholder="you@example.com or username"
+                                                className={styles.inputField}
+                                                aria-invalid={!!(fieldErrors.username || fieldErrors.identifier)}
+                                                aria-describedby={(fieldErrors.username || fieldErrors.identifier) ? "identifier-error" : undefined}
+                                            />
+                                        ) : (
+                                            <input
+                                                id="username-input"
+                                                name="username"
+                                                type="text"
+                                                autoComplete="username"
+                                                value={registerUsername}
+                                                onChange={(e) => {
+                                                    setRegisterUsername(e.target.value);
+                                                    if (fieldErrors.username) setFieldErrors(prev => ({ ...prev, username: null }));
+                                                }}
+                                                placeholder="Choose a username"
+                                                className={styles.inputField}
+                                                aria-invalid={!!fieldErrors.username}
+                                                aria-describedby="username-helper"
+                                            />
+                                        )}
+                                    </div>
+                                    <AnimatePresence>
+                                        {formState === 0 && (fieldErrors.identifier || fieldErrors.username) && (
+                                            <motion.div
+                                                key="identifier-error"
+                                                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                style={{ overflow: "hidden" }}
+                                            >
+                                                <span id="identifier-error" className={styles.fieldErrorText} role="alert">
+                                                    {fieldErrors.identifier || fieldErrors.username}
+                                                </span>
+                                            </motion.div>
+                                        )}
+                                        {formState === 1 && fieldErrors.username && (
+                                            <motion.div
+                                                key="username-error"
+                                                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                style={{ overflow: "hidden" }}
+                                            >
+                                                <span id="username-helper" className={styles.fieldHelperError} role="alert">
+                                                    {fieldErrors.username}
+                                                </span>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    {formState === 1 && !fieldErrors.username && (
+                                        <span id="username-helper" className={styles.fieldHelperText}>
+                                            {usernameHelperText}
+                                        </span>
                                     )}
                                 </div>
-                            )}
 
-                            {/* Username Input */}
-                            <div className={styles.inputGroup}>
-                                <label htmlFor="username-input" className={styles.inputLabel}>
-                                    Username
-                                </label>
-                                <div className={`${styles.inputWrapper} ${fieldErrors.username ? styles.inputWrapperError : ''}`}>
-                                    <div className={styles.inputIcon}>
-                                        <User size={18} strokeWidth={1.75} />
-                                    </div>
-                                    <input
-                                        id="username-input"
-                                        name="username"
-                                        type="text"
-                                        autoComplete="username"
-                                        autoFocus={formState === 0}
-                                        value={username}
-                                        onChange={(e) => {
-                                            setUsername(e.target.value);
-                                            if (fieldErrors.username) setFieldErrors(prev => ({ ...prev, username: null }));
-                                        }}
-                                        placeholder="yourname"
-                                        className={styles.inputField}
-                                    />
-                                </div>
-                                {fieldErrors.username && (
-                                    <span className={styles.fieldErrorText}>{fieldErrors.username}</span>
-                                )}
-                            </div>
-
-                            {/* Password Input */}
-                            <div className={styles.inputGroup}>
-                                <label htmlFor="password-input" className={styles.inputLabel}>
-                                    Password
-                                </label>
-                                <div className={`${styles.inputWrapper} ${fieldErrors.password ? styles.inputWrapperError : ''}`}>
-                                    <div className={styles.inputIcon}>
-                                        <KeyRound size={18} strokeWidth={1.75} />
-                                    </div>
-                                    <input
-                                        id="password-input"
-                                        name="password"
-                                        type={showPassword ? "text" : "password"}
-                                        autoComplete={formState === 0 ? "current-password" : "new-password"}
-                                        value={password}
-                                        onChange={(e) => {
-                                            setPassword(e.target.value);
-                                            if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: null }));
-                                        }}
-                                        onKeyDown={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
-                                        onKeyUp={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
-                                        onBlur={() => setCapsLockActive(false)}
-                                        placeholder="Enter your password"
-                                        className={styles.inputField}
-                                    />
-                                    <button
-                                        type="button"
-                                        aria-label="Toggle password visibility"
-                                        className={styles.passwordToggleBtn}
-                                        onClick={() => setShowPassword(!showPassword)}
-                                    >
-                                        {showPassword ? <EyeOff size={20} strokeWidth={1.75} /> : <Eye size={20} strokeWidth={1.75} />}
-                                    </button>
-                                </div>
-                                {capsLockActive && (
-                                    <span className={styles.capsLockWarning}>Caps Lock is ON</span>
-                                )}
-                                {fieldErrors.password && (
-                                    <span className={styles.fieldErrorText}>{fieldErrors.password}</span>
-                                )}
-
-                                {/* Password Strength Meter (Create Account Only) */}
-                                {formState === 1 && password.length > 0 && (
-                                    <div className={styles.strengthMeterContainer}>
-                                        <div className={styles.strengthSegments}>
-                                            <div className={`${styles.strengthBar} ${strength.score >= 1 ? (strength.score === 1 ? styles.strengthActiveWeak : strength.score === 2 ? styles.strengthActiveFair : strength.score === 3 ? styles.strengthActiveGood : styles.strengthActiveStrong) : ''}`} />
-                                            <div className={`${styles.strengthBar} ${strength.score >= 2 ? (strength.score === 2 ? styles.strengthActiveFair : strength.score === 3 ? styles.strengthActiveGood : styles.strengthActiveStrong) : ''}`} />
-                                            <div className={`${styles.strengthBar} ${strength.score >= 3 ? (strength.score === 3 ? styles.strengthActiveGood : styles.strengthActiveStrong) : ''}`} />
-                                            <div className={`${styles.strengthBar} ${strength.score >= 4 ? styles.strengthActiveStrong : ''}`} />
-                                        </div>
-                                        <span className={styles.strengthLabel}>Password strength: {strength.label}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Confirm Password Input (Create Account Only) */}
-                            {formState === 1 && (
+                                {/* 4. Password Input */}
                                 <div className={styles.inputGroup}>
-                                    <label htmlFor="confirm-password-input" className={styles.inputLabel}>
-                                        Confirm password
+                                    <label htmlFor="password-input" className={styles.inputLabel}>
+                                        Password
                                     </label>
-                                    <div className={`${styles.inputWrapper} ${fieldErrors.confirmPassword ? styles.inputWrapperError : ''}`}>
-                                        <div className={styles.inputIcon}>
-                                            <KeyRound size={18} strokeWidth={1.75} />
+                                    <div className={`${styles.inputWrapper} ${fieldErrors.password ? styles.inputWrapperError : ''}`}>
+                                        <div className={styles.inputIconWrapper}>
+                                            <KeyRound strokeWidth={1.75} className={styles.inputIcon} />
                                         </div>
                                         <input
-                                            id="confirm-password-input"
-                                            name="confirmPassword"
+                                            id="password-input"
+                                            name="password"
                                             type={showPassword ? "text" : "password"}
-                                            autoComplete="new-password"
-                                            value={confirmPassword}
+                                            autoComplete={formState === 0 ? "current-password" : "new-password"}
+                                            value={password}
+                                            onFocus={() => setIsPasswordFocused(true)}
+                                            onBlur={() => {
+                                                setIsPasswordFocused(false);
+                                                setCapsLockActive(false);
+                                            }}
                                             onChange={(e) => {
-                                                setConfirmPassword(e.target.value);
-                                                if (fieldErrors.confirmPassword) setFieldErrors(prev => ({ ...prev, confirmPassword: null }));
+                                                setPassword(e.target.value);
+                                                if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: null }));
                                             }}
                                             onKeyDown={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
                                             onKeyUp={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
-                                            onBlur={() => setCapsLockActive(false)}
-                                            placeholder="Enter your password"
+                                            placeholder={formState === 0 ? "Enter your password" : "Create a password"}
                                             className={styles.inputField}
+                                            aria-invalid={!!fieldErrors.password}
+                                            aria-describedby={fieldErrors.password ? "password-error" : undefined}
                                         />
+                                        <button
+                                            type="button"
+                                            aria-label="Toggle password visibility"
+                                            className={styles.passwordToggleBtn}
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff strokeWidth={1.75} className={styles.eyeToggleIcon} />
+                                            ) : (
+                                                <Eye strokeWidth={1.75} className={styles.eyeToggleIcon} />
+                                            )}
+                                        </button>
                                     </div>
                                     {capsLockActive && (
                                         <span className={styles.capsLockWarning}>Caps Lock is ON</span>
                                     )}
-                                    {fieldErrors.confirmPassword && (
-                                        <span className={styles.fieldErrorText}>{fieldErrors.confirmPassword}</span>
-                                    )}
+                                    <AnimatePresence>
+                                        {fieldErrors.password && (
+                                            <motion.div
+                                                key="password-error"
+                                                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                style={{ overflow: "hidden" }}
+                                            >
+                                                <span id="password-error" className={styles.fieldErrorText} role="alert">
+                                                    {fieldErrors.password}
+                                                </span>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+
+                                    {/* Compact Password Rules Checklist (Item 3) */}
+                                    <AnimatePresence>
+                                        {showPasswordRules && (
+                                            <motion.div
+                                                key="password-rules-box"
+                                                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                style={{ overflow: "hidden" }}
+                                                className={styles.passwordChecklist}
+                                            >
+                                                {/* Three rules as chips in one row */}
+                                                <div className={styles.rulesChipsRow}>
+                                                    <div className={`${styles.checklistItem} ${ruleMinLength ? styles.checklistMet : styles.checklistUnmet}`}>
+                                                        {ruleMinLength ? (
+                                                            <Check strokeWidth={2} className={styles.ruleIcon} />
+                                                        ) : (
+                                                            <Circle strokeWidth={1.75} className={styles.ruleIcon} />
+                                                        )}
+                                                        <span>8+ characters</span>
+                                                    </div>
+                                                    <div className={`${styles.checklistItem} ${ruleHasLetter ? styles.checklistMet : styles.checklistUnmet}`}>
+                                                        {ruleHasLetter ? (
+                                                            <Check strokeWidth={2} className={styles.ruleIcon} />
+                                                        ) : (
+                                                            <Circle strokeWidth={1.75} className={styles.ruleIcon} />
+                                                        )}
+                                                        <span>A letter</span>
+                                                    </div>
+                                                    <div className={`${styles.checklistItem} ${ruleHasNumber ? styles.checklistMet : styles.checklistUnmet}`}>
+                                                        {ruleHasNumber ? (
+                                                            <Check strokeWidth={2} className={styles.ruleIcon} />
+                                                        ) : (
+                                                            <Circle strokeWidth={1.75} className={styles.ruleIcon} />
+                                                        )}
+                                                        <span>A number</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* 4-Segment Strength Bar + Label sharing one row */}
+                                                <div className={styles.strengthMeterRow}>
+                                                    <div className={styles.strengthSegments}>
+                                                        <div className={`${styles.strengthBar} ${strength.score >= 1 ? (strength.score === 1 ? styles.strengthActiveWeak : strength.score === 2 ? styles.strengthActiveFair : strength.score === 3 ? styles.strengthActiveGood : styles.strengthActiveStrong) : ''}`} />
+                                                        <div className={`${styles.strengthBar} ${strength.score >= 2 ? (strength.score === 2 ? styles.strengthActiveFair : strength.score === 3 ? styles.strengthActiveGood : styles.strengthActiveStrong) : ''}`} />
+                                                        <div className={`${styles.strengthBar} ${strength.score >= 3 ? (strength.score === 3 ? styles.strengthActiveGood : styles.strengthActiveStrong) : ''}`} />
+                                                        <div className={`${styles.strengthBar} ${strength.score >= 4 ? styles.strengthActiveStrong : ''}`} />
+                                                    </div>
+                                                    <span className={styles.strengthLabel}>
+                                                        Strength: {strength.label}
+                                                    </span>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
-                            )}
 
-                            {/* Terms Notice (Create account only) */}
-                            {formState === 1 && (
-                                <p className={styles.termsNotice}>
-                                    By creating an account you agree to <span className={styles.termsLink}>Terms</span> and <span className={styles.termsLink}>Privacy</span>
-                                </p>
-                            )}
-
-                            {/* Primary Button */}
-                            <motion.button
-                                type="submit"
-                                disabled={isLoading}
-                                className={styles.primarySubmitBtn}
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
-                                        <span>Processing...</span>
-                                    </>
-                                ) : (
-                                    <span>{formState === 0 ? "Sign in" : "Create account"}</span>
+                                {/* 5. Confirm Password Input (Create Account Only) */}
+                                {formState === 1 && (
+                                    <div className={styles.inputGroup}>
+                                        <label htmlFor="confirm-password-input" className={styles.inputLabel}>
+                                            Confirm password
+                                        </label>
+                                        <div className={`${styles.inputWrapper} ${fieldErrors.confirmPassword || isConfirmMismatch ? styles.inputWrapperError : ''}`}>
+                                            <div className={styles.inputIconWrapper}>
+                                                <KeyRound strokeWidth={1.75} className={styles.inputIcon} />
+                                            </div>
+                                            <input
+                                                id="confirm-password-input"
+                                                name="confirmPassword"
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                autoComplete="new-password"
+                                                value={confirmPassword}
+                                                onChange={(e) => {
+                                                    setConfirmPassword(e.target.value);
+                                                    if (fieldErrors.confirmPassword) setFieldErrors(prev => ({ ...prev, confirmPassword: null }));
+                                                }}
+                                                onKeyDown={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
+                                                onKeyUp={(e) => setCapsLockActive(e.getModifierState('CapsLock'))}
+                                                onBlur={() => {
+                                                    setConfirmBlurred(true);
+                                                    setCapsLockActive(false);
+                                                }}
+                                                placeholder="Re-enter your password"
+                                                className={`${styles.inputField} ${styles.inputFieldConfirm}`}
+                                                aria-invalid={isConfirmMismatch || !!fieldErrors.confirmPassword}
+                                                aria-describedby={isConfirmMismatch || fieldErrors.confirmPassword ? "confirm-password-error" : undefined}
+                                            />
+                                            <div className={styles.inputRightActions}>
+                                                {isConfirmMatch && (
+                                                    <Check strokeWidth={2} className={styles.confirmMatchIcon} aria-label="Passwords match" />
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    aria-label="Toggle confirm password visibility"
+                                                    className={styles.passwordToggleBtn}
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                >
+                                                    {showConfirmPassword ? (
+                                                        <EyeOff strokeWidth={1.75} className={styles.eyeToggleIcon} />
+                                                    ) : (
+                                                        <Eye strokeWidth={1.75} className={styles.eyeToggleIcon} />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {capsLockActive && (
+                                            <span className={styles.capsLockWarning}>Caps Lock is ON</span>
+                                        )}
+                                        <AnimatePresence>
+                                            {(isConfirmMismatch || fieldErrors.confirmPassword) && (
+                                                <motion.div
+                                                    key="confirm-password-error"
+                                                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: "auto" }}
+                                                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                    transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                                                    style={{ overflow: "hidden" }}
+                                                >
+                                                    <span id="confirm-password-error" className={styles.fieldErrorText} role="alert">
+                                                        {fieldErrors.confirmPassword || "Passwords do not match"}
+                                                    </span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
                                 )}
-                            </motion.button>
-                        </motion.form>
-                    </AnimatePresence>
 
-                    {/* Divider */}
-                    <div className={styles.dividerRow}>
-                        <span>or</span>
+                                {/* Primary Button */}
+                                <motion.button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className={styles.primarySubmitBtn}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 strokeWidth={1.75} className={`${styles.loaderIcon} ${styles.spin}`} />
+                                            <span>Processing...</span>
+                                        </>
+                                    ) : (
+                                        <span>{formState === 0 ? "Sign in" : "Create account"}</span>
+                                    )}
+                                </motion.button>
+                            </motion.form>
+                        </AnimatePresence>
                     </div>
 
-                    {/* Secondary Button: Join as guest */}
-                    <button
-                        type="button"
-                        onClick={handleGuestJoin}
-                        className={styles.guestSecondaryBtn}
-                    >
-                        <Zap size={18} strokeWidth={1.75} className="text-[#34D399]" />
-                        <span>Join as guest</span>
-                    </button>
+                    {/* Divider & Guest Join (Sign in tab only) */}
+                    {formState === 0 && (
+                        <>
+                            <div className={styles.dividerRow}>
+                                <span>or</span>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleGuestJoin}
+                                className={styles.guestSecondaryBtn}
+                            >
+                                <Zap strokeWidth={1.75} className={`${styles.guestSecondaryIcon} ${styles.iconAccent}`} />
+                                <span>Join as guest</span>
+                            </button>
+                        </>
+                    )}
                 </motion.div>
 
-                {/* Panel Footer (Centered at bottom) */}
+                {/* Panel Footer (Clean text in flow below the card with margin-top: auto per Item L) */}
                 <div className={styles.panelFooter}>
-                    © 2026 PulseMeet · Privacy · Terms · Status
+                    © 2026 PulseMeet
                 </div>
             </div>
-
-            <Snackbar
-                open={open}
-                autoHideDuration={4000}
-                onClose={() => setOpen(false)}
-                message={message}
-            />
         </div>
     );
 }

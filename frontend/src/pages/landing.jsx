@@ -11,20 +11,27 @@ import LockIcon from '@mui/icons-material/Lock';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 import styles from '../styles/landing.module.css';
+import { generateRoomCode, parseRoomCode } from '../utils/roomCode';
 
 export default function LandingPage() {
     const navigate = useNavigate();
-    const [testRoomCode] = useState(() => Math.random().toString(36).substring(2, 8));
+    const [roomInput, setRoomInput] = useState(() => `${window.location.origin}/${generateRoomCode()}`);
+    const [launcherError, setLauncherError] = useState("");
     const [toastMessage, setToastMessage] = useState("");
     const [showToast, setShowToast] = useState(false);
 
     const handleJoinGuest = () => {
-        const randomRoom = Math.random().toString(36).substring(2, 8);
+        const randomRoom = generateRoomCode();
         navigate(`/${randomRoom}`);
     };
 
     const handleCopyRoomLink = async () => {
-        const link = `${window.location.origin}/${testRoomCode}`;
+        const cleanCode = parseRoomCode(roomInput);
+        if (!cleanCode) {
+            setLauncherError("Enter a valid room code or link");
+            return;
+        }
+        const link = `${window.location.origin}/${cleanCode}`;
         try {
             await navigator.clipboard.writeText(link);
             setToastMessage("Room link copied to clipboard!");
@@ -35,7 +42,12 @@ export default function LandingPage() {
     };
 
     const handleLaunchTestRoom = () => {
-        navigate(`/${testRoomCode}`);
+        const cleanCode = parseRoomCode(roomInput);
+        if (!cleanCode) {
+            setLauncherError("Enter a valid room code or link");
+            return;
+        }
+        navigate(`/${cleanCode}`);
     };
 
     return (
@@ -152,10 +164,16 @@ export default function LandingPage() {
                     <div className={styles.launcherInputGroup}>
                         <TextField
                             fullWidth
-                            value={`${window.location.origin}/${testRoomCode}`}
+                            value={roomInput}
+                            onChange={(e) => {
+                                setRoomInput(e.target.value);
+                                if (launcherError) setLauncherError("");
+                            }}
+                            error={!!launcherError}
+                            helperText={launcherError || ""}
+                            placeholder="Enter room code or paste link"
                             size="small"
                             InputProps={{
-                                readOnly: true,
                                 style: { color: 'var(--pm-text-primary, #ffffff)', fontSize: '0.92rem', fontFamily: 'monospace' }
                             }}
                             sx={{
@@ -163,7 +181,15 @@ export default function LandingPage() {
                                 borderRadius: '12px',
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '12px',
-                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' }
+                                    '& fieldset': { borderColor: launcherError ? 'var(--pm-danger, #ff5c5c)' : 'rgba(255, 255, 255, 0.1)' },
+                                    '&:hover fieldset': { borderColor: launcherError ? 'var(--pm-danger, #ff5c5c)' : 'var(--pm-teal, #00d4aa)' },
+                                    '&.Mui-focused fieldset': { borderColor: launcherError ? 'var(--pm-danger, #ff5c5c)' : 'var(--pm-teal, #00d4aa)' }
+                                },
+                                '& .MuiFormHelperText-root': {
+                                    color: 'var(--pm-danger, #ff5c5c) !important',
+                                    fontSize: '0.8rem',
+                                    marginTop: '4px',
+                                    marginLeft: '2px'
                                 }
                             }}
                         />

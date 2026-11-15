@@ -21,6 +21,7 @@ import ShieldIcon from '@mui/icons-material/Shield';
 import StorageIcon from '@mui/icons-material/Storage';
 
 import { AuthContext } from '../contexts/AuthContext';
+import { generateRoomCode, parseRoomCode } from '../utils/roomCode';
 import styles from '../styles/home.module.css';
 
 function HomeComponent() {
@@ -28,6 +29,7 @@ function HomeComponent() {
     const { userData, addToUserHistory, getHistoryOfUser } = useContext(AuthContext);
 
     const [meetingCode, setMeetingCode] = useState("");
+    const [joinError, setJoinError] = useState("");
     const [recentMeetings, setRecentMeetings] = useState([]);
     const [toastMessage, setToastMessage] = useState("");
     const [showToast, setShowToast] = useState(false);
@@ -54,7 +56,7 @@ function HomeComponent() {
 
     // 1. One-Click Instant Meeting
     const handleStartInstantMeeting = async () => {
-        const randomCode = Math.random().toString(36).substring(2, 8);
+        const randomCode = generateRoomCode();
         try {
             await addToUserHistory(randomCode);
         } catch (err) {
@@ -79,17 +81,10 @@ function HomeComponent() {
     // 2. Join with Code
     const handleJoinWithCode = async (e) => {
         if (e) e.preventDefault();
-        const code = meetingCode.trim();
-        if (!code) {
-            setToastMessage("Please enter a valid meeting code.");
-            setShowToast(true);
+        const cleanCode = parseRoomCode(meetingCode);
+        if (!cleanCode) {
+            setJoinError("Enter a valid room code or link");
             return;
-        }
-
-        // Extract code if user pasted a full URL
-        let cleanCode = code;
-        if (code.includes("/")) {
-            cleanCode = code.split("/").filter(Boolean).pop();
         }
 
         try {
@@ -244,7 +239,12 @@ function HomeComponent() {
                                 fullWidth
                                 placeholder="e.g. abc-123 or paste link"
                                 value={meetingCode}
-                                onChange={(e) => setMeetingCode(e.target.value)}
+                                onChange={(e) => {
+                                    setMeetingCode(e.target.value);
+                                    if (joinError) setJoinError("");
+                                }}
+                                error={!!joinError}
+                                helperText={joinError || ""}
                                 size="small"
                                 InputProps={{
                                     startAdornment: (
@@ -259,9 +259,15 @@ function HomeComponent() {
                                     input: { color: '#fff', fontSize: '0.9rem' },
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '10px',
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.08)' },
-                                        '&:hover fieldset': { borderColor: 'var(--pm-teal, #00d4aa)' },
-                                        '&.Mui-focused fieldset': { borderColor: 'var(--pm-teal, #00d4aa)' }
+                                        '& fieldset': { borderColor: joinError ? 'var(--pm-danger, #ff5c5c)' : 'rgba(255, 255, 255, 0.08)' },
+                                        '&:hover fieldset': { borderColor: joinError ? 'var(--pm-danger, #ff5c5c)' : 'var(--pm-teal, #00d4aa)' },
+                                        '&.Mui-focused fieldset': { borderColor: joinError ? 'var(--pm-danger, #ff5c5c)' : 'var(--pm-teal, #00d4aa)' }
+                                    },
+                                    '& .MuiFormHelperText-root': {
+                                        color: 'var(--pm-danger, #ff5c5c) !important',
+                                        fontSize: '0.8rem',
+                                        marginTop: '4px',
+                                        marginLeft: '2px'
                                     }
                                 }}
                             />
