@@ -1,41 +1,51 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, TextField, Snackbar } from '@mui/material';
-import VideocamRoundedIcon from '@mui/icons-material/VideocamRounded';
-import BoltIcon from '@mui/icons-material/Bolt';
-import ShieldIcon from '@mui/icons-material/Shield';
-import LanguageIcon from '@mui/icons-material/Language';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import LockIcon from '@mui/icons-material/Lock';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { Snackbar } from '@mui/material';
+import {
+    Video,
+    Zap,
+    Shield,
+    Globe,
+    ArrowRight,
+    Copy,
+    Lock,
+    Play,
+    Check
+} from 'lucide-react';
 
 import styles from '../styles/landing.module.css';
 import { generateRoomCode, parseRoomCode } from '../utils/roomCode';
 
 export default function LandingPage() {
     const navigate = useNavigate();
-    const [roomInput, setRoomInput] = useState(() => `${window.location.origin}/${generateRoomCode()}`);
-    const [launcherError, setLauncherError] = useState("");
-    const [toastMessage, setToastMessage] = useState("");
+    const [roomInput, setRoomInput] = useState(() => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${origin}/room/${generateRoomCode()}`;
+    });
+    const [launcherError, setLauncherError] = useState('');
+    const [toastMessage, setToastMessage] = useState('');
     const [showToast, setShowToast] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const handleJoinGuest = () => {
         const randomRoom = generateRoomCode();
-        navigate(`/${randomRoom}`);
+        navigate(`/room/${randomRoom}`);
     };
 
     const handleCopyRoomLink = async () => {
         const cleanCode = parseRoomCode(roomInput);
         if (!cleanCode) {
-            setLauncherError("Enter a valid room code or link");
+            setLauncherError('Enter a valid room code or link');
             return;
         }
-        const link = `${window.location.origin}/${cleanCode}`;
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const link = `${origin}/room/${cleanCode}`;
         try {
             await navigator.clipboard.writeText(link);
-            setToastMessage("Room link copied to clipboard!");
+            setCopied(true);
+            setToastMessage('Meeting link copied to clipboard!');
             setShowToast(true);
+            setTimeout(() => setCopied(false), 2000);
         } catch {
             // fallback
         }
@@ -44,77 +54,57 @@ export default function LandingPage() {
     const handleLaunchTestRoom = () => {
         const cleanCode = parseRoomCode(roomInput);
         if (!cleanCode) {
-            setLauncherError("Enter a valid room code or link");
+            setLauncherError('Enter a valid room code or link');
             return;
         }
-        navigate(`/${cleanCode}`);
+        navigate(`/room/${cleanCode}`);
     };
 
     return (
         <div className={styles.landingWrapper}>
-            {/* 1. Sticky Navbar */}
+            <div className={styles.emeraldGlowTop} />
+            <div className={styles.emeraldGlowBottom} />
+
+            {/* 1. Sticky Glass Navbar */}
             <header className={styles.navbar}>
-                <div className={styles.brand} onClick={() => navigate("/")}>
-                    <div className={styles.logoIcon}>
-                        <VideocamRoundedIcon sx={{ fontSize: 22 }} />
+                <div className={styles.brand} onClick={() => navigate('/')}>
+                    <div className={styles.brandIcon}>
+                        <Video strokeWidth={1.75} className={styles.logoMarkIcon} />
                     </div>
                     <h1 className={styles.brandTitle}>PulseMeet</h1>
                 </div>
 
                 <div className={styles.navLinks}>
-                    <Button
-                        variant="text"
+                    <button
+                        type="button"
+                        className={styles.guestBtn}
                         onClick={handleJoinGuest}
-                        sx={{
-                            color: 'var(--pm-text-secondary, #b4b4c7)',
-                            textTransform: 'none',
-                            borderRadius: '20px',
-                            px: 2,
-                            fontWeight: 600,
-                            fontSize: '0.88rem',
-                            '&:hover': { color: '#ffffff' }
-                        }}
                     >
                         Join as Guest
-                    </Button>
-                    <Button
-                        variant="text"
-                        onClick={() => navigate("/auth")}
-                        sx={{
-                            color: 'var(--pm-text-secondary, #b4b4c7)',
-                            textTransform: 'none',
-                            px: 2,
-                            fontWeight: 600,
-                            fontSize: '0.88rem',
-                            '&:hover': { color: '#ffffff' }
-                        }}
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.signInBtn}
+                        onClick={() => navigate('/auth')}
                     >
                         Sign In
-                    </Button>
-                    <Button
-                        variant="contained"
-                        onClick={() => navigate("/auth")}
-                        sx={{
-                            background: 'var(--pm-primary, #635bff)',
-                            color: '#fff',
-                            textTransform: 'none',
-                            borderRadius: '24px',
-                            px: 2.5,
-                            fontWeight: 700,
-                            fontSize: '0.88rem',
-                            boxShadow: '0 4px 14px rgba(99, 91, 255, 0.35)',
-                            '&:hover': { background: 'var(--pm-primary-hover, #7c75ff)' }
-                        }}
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.getStartedBtn}
+                        onClick={() => navigate('/auth')}
                     >
-                        Get Started
-                    </Button>
+                        <span>Get Started</span>
+                        <ArrowRight size={15} strokeWidth={2.2} />
+                    </button>
                 </div>
             </header>
 
             {/* 2. Hero Section */}
             <main className={styles.heroSection}>
                 <div className={styles.announcementPill}>
-                    <span>✨ Real-Time WebRTC P2P Video & Audio Infrastructure</span>
+                    <span className={styles.pillDot} />
+                    <span>Real-Time WebRTC P2P Video & Audio Infrastructure</span>
                 </div>
 
                 <h2 className={styles.heroTitle}>
@@ -126,126 +116,90 @@ export default function LandingPage() {
                 </p>
 
                 <div className={styles.heroActions}>
-                    <Button
-                        variant="contained"
-                        size="large"
+                    <button
+                        type="button"
                         className={styles.primaryCta}
-                        onClick={() => navigate("/auth")}
-                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => navigate('/auth')}
                     >
-                        Start Free Meeting
-                    </Button>
+                        <span>Start Free Meeting</span>
+                        <ArrowRight size={18} strokeWidth={2} />
+                    </button>
 
-                    <Button
-                        variant="outlined"
-                        size="large"
+                    <button
+                        type="button"
                         className={styles.secondaryCta}
                         onClick={handleJoinGuest}
-                        startIcon={<BoltIcon sx={{ color: 'var(--pm-teal, #00d4aa)' }} />}
                     >
-                        Instant Guest Room
-                    </Button>
+                        <Zap size={18} strokeWidth={1.75} style={{ color: 'var(--pm-primary)' }} />
+                        <span>Instant Guest Room</span>
+                    </button>
                 </div>
 
-                {/* 3. Interactive Room Launcher Box */}
+                {/* 3. Interactive Room Launcher Card */}
                 <div className={styles.launcherCard}>
                     <div className={styles.launcherHeader}>
                         <div className={styles.launcherTitleGroup}>
                             <h3 className={styles.launcherTitle}>Instant Test Room Ready</h3>
                             <p className={styles.launcherSubtitle}>
-                                Test audio, video, recording, and active speaker detection immediately.
+                                Test audio, video, local recording, and active speaker detection immediately.
                             </p>
                         </div>
                         <div className={styles.liveTag}>
-                            <span>● Ready to Connect</span>
+                            <span className={styles.liveDot} />
+                            <span>Ready to Connect</span>
                         </div>
                     </div>
 
                     <div className={styles.launcherInputGroup}>
-                        <TextField
-                            fullWidth
-                            value={roomInput}
-                            onChange={(e) => {
-                                setRoomInput(e.target.value);
-                                if (launcherError) setLauncherError("");
-                            }}
-                            error={!!launcherError}
-                            helperText={launcherError || ""}
-                            placeholder="Enter room code or paste link"
-                            size="small"
-                            InputProps={{
-                                style: { color: 'var(--pm-text-primary, #ffffff)', fontSize: '0.92rem', fontFamily: 'monospace' }
-                            }}
-                            sx={{
-                                bgcolor: 'var(--pm-surface-elevated, #242433)',
-                                borderRadius: '12px',
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '12px',
-                                    '& fieldset': { borderColor: launcherError ? 'var(--pm-danger, #ff5c5c)' : 'rgba(255, 255, 255, 0.1)' },
-                                    '&:hover fieldset': { borderColor: launcherError ? 'var(--pm-danger, #ff5c5c)' : 'var(--pm-teal, #00d4aa)' },
-                                    '&.Mui-focused fieldset': { borderColor: launcherError ? 'var(--pm-danger, #ff5c5c)' : 'var(--pm-teal, #00d4aa)' }
-                                },
-                                '& .MuiFormHelperText-root': {
-                                    color: 'var(--pm-danger, #ff5c5c) !important',
-                                    fontSize: '0.8rem',
-                                    marginTop: '4px',
-                                    marginLeft: '2px'
-                                }
-                            }}
-                        />
+                        <div className={styles.roomInputWrapper}>
+                            <input
+                                type="text"
+                                value={roomInput}
+                                onChange={(e) => {
+                                    setRoomInput(e.target.value);
+                                    if (launcherError) setLauncherError('');
+                                }}
+                                placeholder="Enter room code or paste link"
+                                className={`${styles.roomInput} ${launcherError ? styles.roomInputError : ''}`}
+                            />
+                            {launcherError && (
+                                <span className={styles.launcherErrorText} role="alert">
+                                    {launcherError}
+                                </span>
+                            )}
+                        </div>
 
-                        <Button
-                            variant="outlined"
+                        <button
+                            type="button"
+                            className={styles.copyLinkBtn}
                             onClick={handleCopyRoomLink}
-                            startIcon={<ContentCopyIcon />}
-                            sx={{
-                                color: 'var(--pm-text-secondary, #b4b4c7)',
-                                borderColor: 'rgba(255, 255, 255, 0.15)',
-                                textTransform: 'none',
-                                borderRadius: '12px',
-                                px: 2.2,
-                                py: 1.1,
-                                whiteSpace: 'nowrap',
-                                fontWeight: 600,
-                                '&:hover': { color: '#fff', borderColor: '#fff' }
-                            }}
                         >
-                            Copy Link
-                        </Button>
+                            {copied ? <Check size={16} strokeWidth={2} /> : <Copy size={16} strokeWidth={1.75} />}
+                            <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+                        </button>
 
-                        <Button
-                            variant="contained"
+                        <button
+                            type="button"
+                            className={styles.enterRoomBtn}
                             onClick={handleLaunchTestRoom}
-                            startIcon={<PlayArrowIcon />}
-                            sx={{
-                                background: 'var(--pm-primary, #635bff)',
-                                color: '#ffffff',
-                                textTransform: 'none',
-                                borderRadius: '12px',
-                                px: 2.8,
-                                py: 1.1,
-                                whiteSpace: 'nowrap',
-                                fontWeight: 700,
-                                boxShadow: '0 4px 14px rgba(99, 91, 255, 0.35)',
-                                '&:hover': { background: 'var(--pm-primary-hover, #7c75ff)' }
-                            }}
                         >
-                            Enter Room
-                        </Button>
+                            <Play size={16} strokeWidth={2} fill="currentColor" />
+                            <span>Enter Room</span>
+                        </button>
                     </div>
 
                     <div className={styles.launcherBadgeGrid}>
                         <div className={styles.launcherBadgeItem}>
-                            <LockIcon sx={{ fontSize: 16, color: 'var(--pm-teal, #00d4aa)' }} />
+                            <Lock size={15} strokeWidth={1.75} className={styles.badgeIconAccent} />
                             <span>Direct P2P Mesh</span>
                         </div>
                         <div className={styles.launcherBadgeItem}>
-                            <BoltIcon sx={{ fontSize: 16, color: 'var(--pm-primary, #635bff)' }} />
+                            <Zap size={15} strokeWidth={1.75} className={styles.badgeIconAccent} />
                             <span>Sub-100ms Latency</span>
                         </div>
                         <div className={styles.launcherBadgeItem}>
-                            <ShieldIcon sx={{ fontSize: 16, color: 'var(--pm-amber, #ffb347)' }} />
-                            <span>Client-Side Recording</span>
+                            <Shield size={15} strokeWidth={1.75} className={styles.badgeIconAccent} />
+                            <span>Client-Side WebM Recording</span>
                         </div>
                     </div>
                 </div>
@@ -253,32 +207,32 @@ export default function LandingPage() {
                 {/* 4. Three-Card Feature Highlights Grid */}
                 <section className={styles.featuresGrid}>
                     <div className={styles.featureCard}>
-                        <div className={styles.featureIconWrapper} style={{ background: 'rgba(99, 91, 255, 0.15)', color: 'var(--pm-primary, #635bff)' }}>
-                            <BoltIcon sx={{ fontSize: 26 }} />
+                        <div className={styles.featureIconWrapper}>
+                            <Zap size={24} strokeWidth={2} />
                         </div>
                         <h3 className={styles.featureTitle}>Sub-100ms P2P Latency</h3>
                         <p className={styles.featureDesc}>
-                            Direct browser-to-browser WebRTC streaming eliminates centralized media relay servers, giving you silky smooth video and audio.
+                            Direct browser-to-browser WebRTC streaming eliminates centralized media relay servers, delivering ultra-responsive video and audio.
                         </p>
                     </div>
 
                     <div className={styles.featureCard}>
-                        <div className={styles.featureIconWrapper} style={{ background: 'rgba(0, 212, 170, 0.15)', color: 'var(--pm-teal, #00d4aa)' }}>
-                            <ShieldIcon sx={{ fontSize: 26 }} />
+                        <div className={styles.featureIconWrapper}>
+                            <Shield size={24} strokeWidth={2} />
                         </div>
                         <h3 className={styles.featureTitle}>Local Privacy Recording</h3>
                         <p className={styles.featureDesc}>
-                            Built-in browser MediaRecorder API captures meetings and saves directly as WebM files onto your local disk with zero cloud data storage.
+                            Built-in MediaRecorder API captures meetings and saves directly onto your local disk with zero cloud data storage.
                         </p>
                     </div>
 
                     <div className={styles.featureCard}>
-                        <div className={styles.featureIconWrapper} style={{ background: 'rgba(255, 179, 71, 0.15)', color: 'var(--pm-amber, #ffb347)' }}>
-                            <LanguageIcon sx={{ fontSize: 26 }} />
+                        <div className={styles.featureIconWrapper}>
+                            <Globe size={24} strokeWidth={2} />
                         </div>
                         <h3 className={styles.featureTitle}>100% Browser Native</h3>
                         <p className={styles.featureDesc}>
-                            Zero client downloads, extensions, or account requirements for guests. Simply share your room link to start collaborating immediately.
+                            Zero client downloads, plugins, or extensions required. Simply share your room link to start collaborating immediately.
                         </p>
                     </div>
                 </section>

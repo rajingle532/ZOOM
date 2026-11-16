@@ -40,7 +40,7 @@ if (!isProduction && !rawOrigins.includes("http://localhost:3000")) {
 const TRUST_PROXY =
     process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1";
 
-const MAX_ROOM_SIZE = parseInt(process.env.MAX_ROOM_SIZE, 10) || 4;
+const MAX_ROOM_SIZE = parseInt(process.env.MAX_ROOM_SIZE, 10) || 8;
 
 export const config = {
     port: PORT,

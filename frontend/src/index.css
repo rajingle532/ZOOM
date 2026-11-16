@@ -9,28 +9,56 @@ html {
 }
 
 :root {
-  /* PulseMeet Design Tokens — Startup-Grade Palette */
-  --pm-bg: #111118;
-  --pm-surface: #1c1c27;
-  --pm-surface-elevated: #242433;
-  --pm-border: rgba(255, 255, 255, 0.06);
-  --pm-primary: #635bff;
-  --pm-primary-hover: #7c75ff;
-  --pm-teal: #00d4aa;
+  /* ================= PulseMeet Unified Design Tokens (Dark Emerald System) ================= */
+  /* Backgrounds & Surfaces */
+  --pm-bg: #0A0A0B;
+  --pm-surface: #111113;
+  --pm-surface-elevated: #18181B;
+  --pm-surface-alt: #0F0F11;
+  --pm-surface-card: #16161A;
+
+  /* Brand, Primary & Accents */
+  --pm-primary: #34D399;
+  --pm-primary-hover: #2ECD8F;
+  --pm-primary-glow: rgba(52, 211, 153, 0.15);
+  --pm-primary-dim: rgba(52, 211, 153, 0.08);
+  --pm-accent: #34D399;
+
+  /* Semantic Feedback */
+  --pm-danger: #F43F5E;
+  --pm-danger-hover: #E11D48;
+  --pm-danger-dim: rgba(244, 63, 94, 0.15);
+  --pm-amber: #FBBF24;
+  --pm-amber-dim: rgba(251, 191, 36, 0.15);
+  --pm-teal: #00D4AA;
   --pm-teal-dim: rgba(0, 212, 170, 0.15);
-  --pm-danger: #ff5c5c;
-  --pm-danger-dim: rgba(255, 92, 92, 0.15);
-  --pm-amber: #ffb347;
-  --pm-text-primary: #ffffff;
-  --pm-text-secondary: #b4b4c7;
-  --pm-text-tertiary: #6c6c80;
-  --pm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --pm-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --pm-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --pm-radius-sm: 8px;
-  --pm-radius-md: 12px;
-  --pm-radius-lg: 16px;
-  --pm-radius-xl: 20px;
+  --pm-sky: #38BDF8;
+  --pm-sky-dim: rgba(56, 189, 248, 0.15);
+
+  /* Typography Colors */
+  --pm-text-primary: #EDEDEF;
+  --pm-text-secondary: #A1A1AA;
+  --pm-text-tertiary: #8B8B94;
+  --pm-text-subtle: #71717A;
+  --pm-text-label: #D4D4D8;
+
+  /* Borders & Dividers */
+  --pm-border: rgba(255, 255, 255, 0.08);
+  --pm-border-subtle: rgba(255, 255, 255, 0.04);
+  --pm-border-glass: rgba(255, 255, 255, 0.1);
+  --pm-border-active: rgba(52, 211, 153, 0.4);
+
+  /* Elevation & Shadows */
+  --pm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --pm-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --pm-shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  --pm-shadow-glow: 0 0 2rem rgba(52, 211, 153, 0.25);
+
+  /* Radii */
+  --pm-radius-sm: 0.5rem;
+  --pm-radius-md: 0.75rem;
+  --pm-radius-lg: 1.25rem;
+  --pm-radius-full: 9999px;
 }
 
 body {

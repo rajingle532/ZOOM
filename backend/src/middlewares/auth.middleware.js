@@ -4,10 +4,15 @@ import { config } from "../config.js";
 
 export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"] || req.headers["Authorization"];
-    const token =
-        authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")
-            ? authHeader.split(" ")[1]
-            : null;
+    let token = null;
+
+    if (authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+    } else if (req.query?.token && typeof req.query.token === "string") {
+        token = req.query.token;
+    } else if (req.body?.token && typeof req.body.token === "string") {
+        token = req.body.token;
+    }
 
     if (!token) {
         return res.status(httpStatus.UNAUTHORIZED).json({
@@ -29,4 +34,27 @@ export const authenticateToken = (req, res, next) => {
             message: "Invalid or malformed authentication token."
         });
     }
+};
+
+export const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers["authorization"] || req.headers["Authorization"];
+    let token = null;
+
+    if (authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+    } else if (req.query?.token && typeof req.query.token === "string") {
+        token = req.query.token;
+    } else if (req.body?.token && typeof req.body.token === "string") {
+        token = req.body.token;
+    }
+
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, config.jwtSecret);
+            req.user = decoded;
+        } catch {
+            // Token expired or invalid; proceed as unauthenticated without failing
+        }
+    }
+    next();
 };

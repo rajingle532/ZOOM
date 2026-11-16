@@ -7,9 +7,13 @@ const ROOM_CODE_REGEX = /^[a-zA-Z0-9_-]{3,64}$/;
 const MAX_SIGNAL_BYTES = 64 * 1024; // 64 KB limit
 const MAX_CHAT_LENGTH = 1000;
 const MAX_NAME_LENGTH = 30;
+const MAX_STORED_MESSAGES = 100;
 
 // Rate limiting state per socket (10 events per 5 seconds)
 const socketRateLimits = new Map();
+
+// In-memory Room Chat History: roomCode -> Array<{ sender, data, socketId, time }>
+const roomMessages = new Map();
 
 const isRateLimited = (socketId, limit = 10, windowMs = 5000) => {
     const now = Date.now();
@@ -67,7 +71,7 @@ export const connectToSocket = (server) => {
         const segments = rawPath.replace(/^\/+|\/+$/g, "").split("/");
         const code = segments[segments.length - 1];
         if (!code || !ROOM_CODE_REGEX.test(code)) return null;
-        return code;
+        return code.toLowerCase();
     };
 
     io.on("connection", (socket) => {
@@ -119,6 +123,15 @@ export const connectToSocket = (server) => {
 
             // Broadcast newly joined user and active client list
             io.to(roomCode).emit("user-joined", socket.id, clients);
+
+            // Replay room chat history to newly joined user (Apna College Zoom best feature)
+            const history = roomMessages.get(roomCode);
+            if (history && history.length > 0) {
+                socket.emit("chat-history", history);
+                history.forEach((msg) => {
+                    socket.emit("chat-message", msg.data, msg.sender, msg.socketId, msg.time);
+                });
+            }
         });
 
         // WebRTC Signaling Relay
@@ -142,7 +155,7 @@ export const connectToSocket = (server) => {
             io.to(toId).emit("signal", socket.id, message);
         });
 
-        // In-Meeting Chat
+        // In-Meeting Chat with in-memory persistence and replay
         socket.on("chat-message", (data, sender) => {
             const roomCode = socket.roomCode;
             if (!roomCode) return;
@@ -155,9 +168,26 @@ export const connectToSocket = (server) => {
 
             // Trust authenticated name first, fallback to sanitized client sender
             const senderName = socket.user?.name || socket.user?.username || sanitizeName(sender);
+            const messageTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const messageRecord = {
+                sender: senderName,
+                data: trimmedMessage,
+                socketId: socket.id,
+                time: messageTime
+            };
+
+            if (!roomMessages.has(roomCode)) {
+                roomMessages.set(roomCode, []);
+            }
+            const roomHistory = roomMessages.get(roomCode);
+            roomHistory.push(messageRecord);
+            if (roomHistory.length > MAX_STORED_MESSAGES) {
+                roomHistory.shift();
+            }
 
             console.log(`[Chat] Message broadcast in '${roomCode}' by ${senderName} (${socket.id})`);
-            io.to(roomCode).emit("chat-message", trimmedMessage, senderName, socket.id);
+            io.to(roomCode).emit("chat-message", trimmedMessage, senderName, socket.id, messageTime);
         });
 
         // Emoji Reaction Broadcast
@@ -196,6 +226,18 @@ export const connectToSocket = (server) => {
             });
         });
 
+        // Media State (Video / Audio toggle) Broadcast
+        socket.on("user-media-state", (data) => {
+            const roomCode = socket.roomCode;
+            if (!roomCode) return;
+
+            socket.to(roomCode).emit("user-media-state", {
+                socketId: socket.id,
+                video: Boolean(data?.video),
+                audio: Boolean(data?.audio)
+            });
+        });
+
         // Disconnect Handler
         socket.on("disconnect", () => {
             socketRateLimits.delete(socket.id);
@@ -203,6 +245,17 @@ export const connectToSocket = (server) => {
             if (roomCode) {
                 console.log(`[Socket] ${socket.id} disconnected from '${roomCode}'`);
                 socket.to(roomCode).emit("user-left", socket.id);
+
+                // Clean up room message history if room stays empty for 15 minutes
+                const remaining = io.sockets.adapter.rooms.get(roomCode)?.size || 0;
+                if (remaining === 0) {
+                    setTimeout(() => {
+                        const checkAgain = io.sockets.adapter.rooms.get(roomCode)?.size || 0;
+                        if (checkAgain === 0) {
+                            roomMessages.delete(roomCode);
+                        }
+                    }, 15 * 60 * 1000);
+                }
             }
         });
     });

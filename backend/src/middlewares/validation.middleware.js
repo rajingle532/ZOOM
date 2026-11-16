@@ -1,6 +1,15 @@
 import { z } from "zod";
 import httpStatus from "http-status";
 
+// Shared password validation rules (8-72 chars, at least one letter and one number)
+export const passwordRules = z
+    .string({ error: "Password is required" })
+    .min(8, { error: "Password must be at least 8 characters long" })
+    .max(72, { error: "Password cannot exceed 72 characters" })
+    .refine((val) => /[a-zA-Z]/.test(val) && /[0-9]/.test(val), {
+        message: "Password must contain at least one letter and one number"
+    });
+
 // Register validation schema
 export const registerSchema = z.object({
     name: z
@@ -24,13 +33,7 @@ export const registerSchema = z.object({
         .regex(/^[a-zA-Z0-9_]+$/, {
             error: "Username can only contain letters, numbers, and underscores"
         }),
-    password: z
-        .string({ error: "Password is required" })
-        .min(8, { error: "Password must be at least 8 characters long" })
-        .max(72, { error: "Password cannot exceed 72 characters" })
-        .refine((val) => /[a-zA-Z]/.test(val) && /[0-9]/.test(val), {
-            message: "Password must contain at least one letter and one number"
-        })
+    password: passwordRules
 });
 
 // Login validation schema: accepts username or identifier alias, normalizes to req.body.identifier
@@ -59,6 +62,53 @@ export const loginSchema = z
                 .max(128, { error: "Password is too long" })
         })
     );
+
+// Send verification code schema
+export const sendVerificationSchema = z.object({
+    email: z.string().trim().toLowerCase().email().optional(),
+    username: z.string().trim().optional()
+});
+
+// Verify email code schema
+export const verifyEmailSchema = z.object({
+    code: z
+        .string({ error: "Verification code is required" })
+        .trim()
+        .min(4, { error: "Verification code is invalid" })
+        .max(64, { error: "Verification code is invalid" }),
+    email: z.string().trim().toLowerCase().email().optional()
+});
+
+// Forgot password schema
+export const forgotPasswordSchema = z.object({
+    email: z
+        .string({ error: "Email is required" })
+        .trim()
+        .min(1, { error: "Email is required" })
+        .max(254, { error: "Enter a valid email address" })
+        .toLowerCase()
+        .email({ error: "Enter a valid email address" })
+});
+
+// Reset password schema
+export const resetPasswordSchema = z.object({
+    token: z
+        .string({ error: "Reset token is required" })
+        .trim()
+        .min(1, { error: "Reset token is required" }),
+    password: passwordRules
+});
+
+// Add email schema (for legacy users)
+export const addEmailSchema = z.object({
+    email: z
+        .string({ error: "Email is required" })
+        .trim()
+        .min(1, { error: "Email is required" })
+        .max(254, { error: "Enter a valid email address" })
+        .toLowerCase()
+        .email({ error: "Enter a valid email address" })
+});
 
 // Add to activity schema (accepts meetingCode or meeting_code)
 export const activitySchema = z

@@ -19,6 +19,23 @@ client.interceptors.request.use((config) => {
     return config;
 });
 
+// Handle expired tokens on protected endpoints: clear auth and redirect
+client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const url = error.config?.url || "";
+        const isAuthEndpoint = url.includes("/login") || url.includes("/register");
+        if (error.response?.status === 401 && !isAuthEndpoint) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            if (typeof window !== "undefined") {
+                window.location.href = "/auth?expired=true";
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const AuthProvider = ({ children }) => {
     const [userData, setUserData] = useState(() => {
         try {
@@ -92,13 +109,60 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const sendVerification = async (email) => {
+        const response = await client.post("/send-verification", { ...(email && { email }) });
+        return response.data;
+    };
+
+    const verifyEmail = async (code, email) => {
+        const response = await client.post("/verify-email", {
+            code,
+            ...(email && { email })
+        });
+        if (response.data?.isVerified) {
+            setUserData((prev) => {
+                const updated = { ...prev, isVerified: true };
+                localStorage.setItem("user", JSON.stringify(updated));
+                return updated;
+            });
+        }
+        return response.data;
+    };
+
+    const forgotPassword = async (email) => {
+        const response = await client.post("/forgot-password", { email });
+        return response.data;
+    };
+
+    const resetPassword = async (token, password) => {
+        const response = await client.post("/reset-password", { token, password });
+        return response.data;
+    };
+
+    const addEmail = async (email) => {
+        const response = await client.post("/add-email", { email });
+        if (response.data?.email) {
+            setUserData((prev) => {
+                const updated = { ...prev, email: response.data.email, isVerified: false };
+                localStorage.setItem("user", JSON.stringify(updated));
+                return updated;
+            });
+        }
+        return response.data;
+    };
+
     const data = {
         userData,
         setUserData,
         addToUserHistory,
         getHistoryOfUser,
         handleRegister,
-        handleLogin
+        handleLogin,
+        sendVerification,
+        verifyEmail,
+        forgotPassword,
+        resetPassword,
+        addEmail
     };
 
     return (

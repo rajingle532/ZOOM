@@ -14,7 +14,8 @@ import {
     ArrowLeft,
     Loader2,
     Check,
-    Circle
+    Circle,
+    X
 } from 'lucide-react';
 import { AuthContext } from '../contexts/AuthContext';
 import HeroPreview from '../components/auth/HeroPreview';
@@ -40,8 +41,24 @@ export default function Authentication() {
     const [isLoading, setIsLoading] = useState(false);
     const [shake, setShake] = useState(false);
 
+    // Forgot Password & Reset Modal States
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotSuccess, setForgotSuccess] = useState("");
+    const [forgotError, setForgotError] = useState("");
+
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [resetToken, setResetToken] = useState("");
+    const [resetEmail, setResetEmail] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
+    const [resetError, setResetError] = useState("");
+
     const shouldReduceMotion = useReducedMotion();
-    const { handleRegister, handleLogin } = useContext(AuthContext);
+    const { handleRegister, handleLogin, forgotPassword, resetPassword } = useContext(AuthContext);
     const navigate = useNavigate();
 
     // Item 1: Unified switchTab that completely resets state across tabs
@@ -78,12 +95,88 @@ export default function Authentication() {
         }
     };
 
-    // Item 6: Autofocus first field on initial mount only when >= 1024px
+    // Item 6: Autofocus first field on initial mount only when >= 1024px & handle session expiry / reset token
     useEffect(() => {
-        if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(min-width: 1024px)").matches) {
-            document.getElementById("identifier-input")?.focus();
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("expired") === "true") {
+                setError("Your session has expired. Please sign in again.");
+            }
+            const tokenParam = params.get("reset_token");
+            if (tokenParam) {
+                setResetToken(tokenParam);
+                setResetEmail(params.get("email") || "");
+                setShowResetModal(true);
+            }
+            if (window.matchMedia && window.matchMedia("(min-width: 1024px)").matches) {
+                document.getElementById("identifier-input")?.focus();
+            }
         }
     }, []);
+
+    const handleForgotPasswordSubmit = async (e) => {
+        if (e) e.preventDefault();
+        setForgotError("");
+        setForgotSuccess("");
+
+        const emailTrimmed = forgotEmail.trim().toLowerCase();
+        if (!emailTrimmed) {
+            setForgotError("Email address is required");
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+            setForgotError("Please enter a valid email address");
+            return;
+        }
+
+        setForgotLoading(true);
+        try {
+            const res = await forgotPassword(emailTrimmed);
+            setForgotSuccess(res?.message || "If that email is registered, a password reset link has been sent.");
+        } catch (err) {
+            setForgotError(err?.response?.data?.message || "Failed to process request. Try again later.");
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
+    const handleResetPasswordSubmit = async (e) => {
+        if (e) e.preventDefault();
+        setResetError("");
+
+        if (!newPassword) {
+            setResetError("New password is required");
+            return;
+        }
+        if (newPassword.length < 8 || newPassword.length > 72) {
+            setResetError("Password must be between 8 and 72 characters");
+            return;
+        }
+        if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+            setResetError("Password must contain at least one letter and one number");
+            return;
+        }
+        if (newPassword !== confirmNewPassword) {
+            setResetError("Passwords do not match");
+            return;
+        }
+
+        setResetLoading(true);
+        try {
+            await resetPassword(resetToken, newPassword);
+            setShowResetModal(false);
+            setSuccessNotice("Password reset successfully! Please sign in with your new password.");
+            if (resetEmail) {
+                switchTab(0, { prefill: { identifier: resetEmail } });
+            } else {
+                switchTab(0);
+            }
+        } catch (err) {
+            setResetError(err?.response?.data?.message || "Failed to reset password. The link may have expired.");
+        } finally {
+            setResetLoading(false);
+        }
+    };
 
     // Password rules checklist calculations
     const ruleMinLength = password.length >= 8;
@@ -645,9 +738,29 @@ export default function Authentication() {
 
                                 {/* 4. Password Input */}
                                 <div className={styles.inputGroup}>
-                                    <label htmlFor="password-input" className={styles.inputLabel}>
-                                        Password
-                                    </label>
+                                    {formState === 0 ? (
+                                        <div className={styles.labelWithAction}>
+                                            <label htmlFor="password-input" className={styles.inputLabel} style={{ marginBottom: 0 }}>
+                                                Password
+                                            </label>
+                                            <button
+                                                type="button"
+                                                className={styles.forgotPasswordLink}
+                                                onClick={() => {
+                                                    setForgotEmail(loginIdentifier.includes("@") ? loginIdentifier : "");
+                                                    setForgotSuccess("");
+                                                    setForgotError("");
+                                                    setShowForgotModal(true);
+                                                }}
+                                            >
+                                                Forgot password?
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <label htmlFor="password-input" className={styles.inputLabel}>
+                                            Password
+                                        </label>
+                                    )}
                                     <div className={`${styles.inputWrapper} ${fieldErrors.password ? styles.inputWrapperError : ''}`}>
                                         <div className={styles.inputIconWrapper}>
                                             <KeyRound strokeWidth={1.75} className={styles.inputIcon} />
@@ -879,6 +992,204 @@ export default function Authentication() {
                     © 2026 PulseMeet
                 </div>
             </div>
+
+            {/* Forgot Password Modal */}
+            <AnimatePresence>
+                {showForgotModal && (
+                    <motion.div
+                        className={styles.modalBackdrop}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className={styles.modalContent}
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                        >
+                            <button
+                                type="button"
+                                className={styles.modalCloseBtn}
+                                onClick={() => setShowForgotModal(false)}
+                                aria-label="Close dialog"
+                            >
+                                <X size={18} strokeWidth={2} />
+                            </button>
+
+                            <h3 className={styles.modalTitle}>Reset password</h3>
+                            <p className={styles.modalSubtitle}>
+                                Enter your registered email address and we'll send you a link to reset your password.
+                            </p>
+
+                            {forgotSuccess ? (
+                                <div>
+                                    <div className={styles.alertSuccess} style={{ marginBottom: "1.25rem" }}>
+                                        <span>{forgotSuccess}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className={styles.primarySubmitBtn}
+                                        onClick={() => setShowForgotModal(false)}
+                                    >
+                                        Return to Sign in
+                                    </button>
+                                </div>
+                            ) : (
+                                <form onSubmit={handleForgotPasswordSubmit} noValidate>
+                                    {forgotError && (
+                                        <div className={styles.alertError} style={{ marginBottom: "1rem" }}>
+                                            <span>{forgotError}</span>
+                                        </div>
+                                    )}
+                                    <div className={styles.inputGroup}>
+                                        <label className={styles.inputLabel}>Registered email</label>
+                                        <div className={styles.inputWrapper}>
+                                            <div className={styles.inputIconWrapper}>
+                                                <Mail strokeWidth={1.75} className={styles.inputIcon} />
+                                            </div>
+                                            <input
+                                                type="email"
+                                                value={forgotEmail}
+                                                onChange={(e) => {
+                                                    setForgotEmail(e.target.value);
+                                                    if (forgotError) setForgotError("");
+                                                }}
+                                                placeholder="you@example.com"
+                                                className={styles.inputField}
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={forgotLoading}
+                                        className={styles.primarySubmitBtn}
+                                        style={{ marginTop: "1rem" }}
+                                    >
+                                        {forgotLoading ? (
+                                            <>
+                                                <Loader2 strokeWidth={1.75} className={`${styles.loaderIcon} ${styles.spin}`} />
+                                                <span>Sending...</span>
+                                            </>
+                                        ) : (
+                                            <span>Send reset link</span>
+                                        )}
+                                    </button>
+                                </form>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Reset Password Modal */}
+            <AnimatePresence>
+                {showResetModal && (
+                    <motion.div
+                        className={styles.modalBackdrop}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className={styles.modalContent}
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                        >
+                            <button
+                                type="button"
+                                className={styles.modalCloseBtn}
+                                onClick={() => setShowResetModal(false)}
+                                aria-label="Close dialog"
+                            >
+                                <X size={18} strokeWidth={2} />
+                            </button>
+
+                            <h3 className={styles.modalTitle}>Set new password</h3>
+                            <p className={styles.modalSubtitle}>
+                                {resetEmail ? `Enter a new password for ${resetEmail}:` : "Choose a new strong password for your account:"}
+                            </p>
+
+                            {resetError && (
+                                <div className={styles.alertError} style={{ marginBottom: "1rem" }}>
+                                    <span>{resetError}</span>
+                                </div>
+                            )}
+
+                            <form onSubmit={handleResetPasswordSubmit} noValidate>
+                                <div className={styles.inputGroup}>
+                                    <label className={styles.inputLabel}>New password</label>
+                                    <div className={styles.inputWrapper}>
+                                        <div className={styles.inputIconWrapper}>
+                                            <KeyRound strokeWidth={1.75} className={styles.inputIcon} />
+                                        </div>
+                                        <input
+                                            type={showNewPassword ? "text" : "password"}
+                                            value={newPassword}
+                                            onChange={(e) => {
+                                                setNewPassword(e.target.value);
+                                                if (resetError) setResetError("");
+                                            }}
+                                            placeholder="8+ chars with letter and number"
+                                            className={styles.inputField}
+                                        />
+                                        <button
+                                            type="button"
+                                            aria-label="Toggle password visibility"
+                                            className={styles.passwordToggleBtn}
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                        >
+                                            {showNewPassword ? (
+                                                <EyeOff strokeWidth={1.75} className={styles.eyeToggleIcon} />
+                                            ) : (
+                                                <Eye strokeWidth={1.75} className={styles.eyeToggleIcon} />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className={styles.inputGroup} style={{ marginTop: "1rem" }}>
+                                    <label className={styles.inputLabel}>Confirm new password</label>
+                                    <div className={styles.inputWrapper}>
+                                        <div className={styles.inputIconWrapper}>
+                                            <KeyRound strokeWidth={1.75} className={styles.inputIcon} />
+                                        </div>
+                                        <input
+                                            type={showNewPassword ? "text" : "password"}
+                                            value={confirmNewPassword}
+                                            onChange={(e) => {
+                                                setConfirmNewPassword(e.target.value);
+                                                if (resetError) setResetError("");
+                                            }}
+                                            placeholder="Re-enter your new password"
+                                            className={styles.inputField}
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={resetLoading}
+                                    className={styles.primarySubmitBtn}
+                                    style={{ marginTop: "1.25rem" }}
+                                >
+                                    {resetLoading ? (
+                                        <>
+                                            <Loader2 strokeWidth={1.75} className={`${styles.loaderIcon} ${styles.spin}`} />
+                                            <span>Updating password...</span>
+                                        </>
+                                    ) : (
+                                        <span>Set new password</span>
+                                    )}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
