@@ -37,7 +37,8 @@ import { useMediaDevices } from '../hooks/useMediaDevices';
 import { useWebRTC } from '../hooks/useWebRTC';
 
 /**
- * Individual remote participant video tile with dedicated <audio> element,
+ * Individual remote participant video tile with unified unmuted audio/video,
+ * persistent media element rendering (opacity: 0 when camera is off so sound never drops),
  * autoplay recovery, per-peer local mute (to eliminate feedback during testing),
  * camera-off avatar representation, and speaking waveform animation.
  */
@@ -49,78 +50,69 @@ function PeerVideoTile({
     getAvatarGradient
 }) {
     const videoRef = useRef(null);
-    const audioRef = useRef(null);
     const [isAudioMutedByMe, setIsAudioMutedByMe] = useState(false);
     const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
-    const hasVideo = mediaState?.video !== false && Boolean(peerVideo.stream);
+    const hasVideo = mediaState?.video !== false;
     const isMicMuted = mediaState?.audio === false;
 
+    // Attach stream to video element and handle audio/video playback
     useEffect(() => {
+        const videoEl = videoRef.current;
         const stream = peerVideo.stream;
-        if (!stream) return;
+        if (!videoEl || !stream) return;
 
-        if (videoRef.current && videoRef.current.srcObject !== stream) {
-            videoRef.current.srcObject = stream;
+        videoEl.srcObject = stream;
+        videoEl.muted = isAudioMutedByMe;
+
+        const playPromise = videoEl.play();
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    setAutoplayBlocked(false);
+                })
+                .catch((err) => {
+                    if (err.name === 'NotAllowedError') {
+                        console.warn(`[Autoplay] Blocked for peer ${peerVideo.socketId}:`, err);
+                        setAutoplayBlocked(true);
+                    }
+                });
         }
-        if (audioRef.current && audioRef.current.srcObject !== stream) {
-            audioRef.current.srcObject = stream;
-        }
+    }, [peerVideo.stream, peerVideo.socketId, isAudioMutedByMe]);
 
-        const tryPlay = async () => {
-            try {
-                if (videoRef.current) await videoRef.current.play();
-                if (audioRef.current) await audioRef.current.play();
-                setAutoplayBlocked(false);
-            } catch (err) {
-                if (err.name === 'NotAllowedError') {
-                    console.warn(`[Autoplay] Blocked for peer ${peerVideo.socketId}:`, err);
-                    setAutoplayBlocked(true);
-                }
-            }
-        };
-
-        tryPlay();
-    }, [peerVideo.stream, peerVideo.socketId]);
-
-    const handleEnableAudio = async () => {
-        try {
-            if (audioRef.current) await audioRef.current.play();
-            if (videoRef.current) await videoRef.current.play();
-            setAutoplayBlocked(false);
-        } catch (e) {
-            console.warn("Could not unpause audio:", e);
+    const handleEnableAudio = () => {
+        if (videoRef.current) {
+            videoRef.current.muted = false;
+            setIsAudioMutedByMe(false);
+            videoRef.current.play().then(() => setAutoplayBlocked(false)).catch(() => {});
         }
     };
 
     return (
         <div className={`${styles.videoTile} ${isPeerSpeaking ? styles.activeSpeaker : ""}`}>
-            {/* Dedicated Audio Element ensures sound plays even if video is off */}
-            <audio
-                ref={audioRef}
-                autoPlay
-                playsInline
-                muted={isAudioMutedByMe}
-            />
-
-            {/* Video element - muted here since dedicated <audio> handles sound */}
+            {/* Unified Video & Audio Element: Unmuted for remote peer so sound plays crystal clear! */}
             <video
                 data-socket={peerVideo.socketId}
                 ref={videoRef}
                 autoPlay
                 playsInline
-                muted
+                muted={isAudioMutedByMe}
                 style={{
-                    display: hasVideo ? 'block' : 'none',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover'
+                    objectFit: 'cover',
+                    opacity: hasVideo ? 1 : 0,
+                    zIndex: hasVideo ? 1 : 0,
+                    pointerEvents: hasVideo ? 'auto' : 'none'
                 }}
             />
 
-            {/* Avatar card when camera is turned off */}
+            {/* Avatar card when camera is turned off (placed in front of video element) */}
             {!hasVideo && (
-                <div className={styles.cameraOffCard}>
+                <div className={styles.cameraOffCard} style={{ position: 'relative', zIndex: 2 }}>
                     <div className={styles.avatarWrapper}>
                         {isPeerSpeaking && <div className={styles.speakingWaveRing} />}
                         <Avatar
@@ -150,24 +142,24 @@ function PeerVideoTile({
                         top: 12,
                         left: 12,
                         right: 12,
-                        padding: '6px 12px',
-                        background: 'rgba(239, 68, 68, 0.95)',
+                        padding: '8px 14px',
+                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                         color: '#fff',
-                        borderRadius: 8,
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
+                        borderRadius: 10,
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
                         cursor: 'pointer',
-                        zIndex: 10,
+                        zIndex: 20,
                         textAlign: 'center',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                        boxShadow: '0 8px 24px rgba(239, 68, 68, 0.5)'
                     }}
                 >
-                    🔊 Audio paused by browser. Click to enable sound!
+                    🔊 Audio paused by browser. Click here to enable sound!
                 </div>
             )}
 
             {/* Tile Overlay */}
-            <div className={styles.tileOverlay}>
+            <div className={styles.tileOverlay} style={{ zIndex: 10 }}>
                 <div className={styles.participantNameTag}>
                     {isPeerSpeaking && (
                         <div className={styles.speakingIndicatorMini}>
@@ -238,6 +230,29 @@ export default function VideoMeetComponent() {
     const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
     const [toastMessage, setToastMessage] = useState("");
     const [showToast, setShowToast] = useState(false);
+
+    // Global User Interaction Listener to guarantee Autoplay Policy Audio Unlocking
+    useEffect(() => {
+        const unlockAllAudio = () => {
+            document.querySelectorAll('video').forEach((v) => {
+                if (v && v !== localVideoref.current && v !== lobbyVideoref.current) {
+                    if (v.paused) {
+                        v.play().catch(() => {});
+                    }
+                }
+            });
+        };
+
+        window.addEventListener('click', unlockAllAudio);
+        window.addEventListener('touchstart', unlockAllAudio);
+        window.addEventListener('keydown', unlockAllAudio);
+
+        return () => {
+            window.removeEventListener('click', unlockAllAudio);
+            window.removeEventListener('touchstart', unlockAllAudio);
+            window.removeEventListener('keydown', unlockAllAudio);
+        };
+    }, []);
 
     // 1. Decoupled Media Devices Hook
     const {
@@ -337,6 +352,15 @@ export default function VideoMeetComponent() {
         const finalName = username.trim() || ("Guest-" + Math.floor(100 + Math.random() * 900));
         setUsername(finalName);
         setAskForUsername(false);
+
+        // Resume AudioContext during trusted user gesture to permanently unlock audio pipeline
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                ctx.resume().then(() => ctx.close()).catch(() => {});
+            }
+        } catch (e) {}
 
         connectToRoom();
         setTimeout(() => {

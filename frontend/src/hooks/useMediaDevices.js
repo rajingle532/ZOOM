@@ -53,7 +53,18 @@ export function useMediaDevices(initialConstraints = DEFAULT_CONSTRAINTS) {
             setAudio(true);
             return stream;
         } catch (err) {
-            console.warn("Camera/Mic combined access rejected, attempting individual streams:", err);
+            console.warn("Camera/Mic combined access with constraints rejected, attempting basic { video: true, audio: true } fallback:", err);
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStreamRef.current = stream;
+                setLocalStream(stream);
+                setVideo(true);
+                setAudio(true);
+                return stream;
+            } catch (err2) {
+                console.warn("Basic combined access rejected, attempting individual streams:", err2);
+            }
 
             // Attempt video-only fallback
             let videoTrackObtained = false;

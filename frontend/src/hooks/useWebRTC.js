@@ -403,27 +403,35 @@ export function useWebRTC({ roomCode, localStreamRef, username, onError }) {
                     };
 
                     pc.ontrack = (event) => {
-                        let remoteStream = event.streams && event.streams[0];
-                        if (!remoteStream) {
-                            remoteStream = new MediaStream([event.track]);
-                        }
+                        const track = event.track;
+                        console.log(`[WebRTC] Received ${track.kind} track from ${socketListId}`);
 
                         setVideos((prev) => {
                             const exists = prev.find((v) => v.socketId === socketListId);
-                            if (exists) {
-                                // Add track to existing stream if missing
-                                if (exists.stream && !exists.stream.getTracks().some(t => t.id === event.track.id)) {
-                                    exists.stream.addTrack(event.track);
+                            let combinedStream;
+
+                            if (exists && exists.stream) {
+                                if (!exists.stream.getTracks().some((t) => t.id === track.id)) {
+                                    exists.stream.addTrack(track);
                                 }
+                                combinedStream = new MediaStream(exists.stream.getTracks());
+                            } else if (event.streams && event.streams[0]) {
+                                combinedStream = new MediaStream(event.streams[0].getTracks());
+                            } else {
+                                combinedStream = new MediaStream([track]);
+                            }
+
+                            if (exists) {
                                 return prev.map((v) =>
-                                    v.socketId === socketListId ? { ...v, stream: exists.stream || remoteStream } : v
+                                    v.socketId === socketListId ? { ...v, stream: combinedStream } : v
                                 );
                             }
+
                             return [
                                 ...prev,
                                 {
                                     socketId: socketListId,
-                                    stream: remoteStream,
+                                    stream: combinedStream,
                                     autoplay: true,
                                     playsinline: true
                                 }
